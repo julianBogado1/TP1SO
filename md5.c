@@ -1,7 +1,8 @@
-// programa que recibe por linea de comando los nombres de los archivos que debe analizar
-// deebe iniciar esclavos
-// debe distribuir una cantidad mucho menor de los archivos a cada esclavo
-//         -->esperar que terminen de obtener el md5, ellos le devuelven el resultado a el, EL LO PONE EN LA SHARE MEMORY
+// programa que recibe por linea de comando los nombres de los archivos que debe
+// analizar deebe iniciar esclavos debe distribuir una cantidad mucho menor de
+// los archivos a cada esclavo
+//         -->esperar que terminen de obtener el md5, ellos le devuelven el
+//         resultado a el, EL LO PONE EN LA SHARE MEMORY
 //         -->pasarle mas archivos hasta que se quede sin
 
 #include <stdio.h>
@@ -10,17 +11,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int slave_count = argc / 10;
     char *warn = argv[1];
 
-    for (int i = 0; i < slave_count; i++)
-    {
+    for (int i = 0; i < slave_count; i++) {
         int childpid = fork();
 
-        if (childpid == -1)
-        {
+        if (childpid == -1) {
             perror("fork");
             exit(EXIT_FAILURE);
         }
@@ -38,7 +36,8 @@ int main(int argc, char *argv[])
         //     // close(pipefd[0]);
 
         //     // escribe stdin al pipe
-        //     // por lo que se podria interpretar que el pipe es el nuevo stdout
+        //     // por lo que se podria interpretar que el pipe es el nuevo
+        //     stdout
 
         //     close(pipefd[1]); /* Reader will see EOF */
 
