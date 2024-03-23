@@ -11,11 +11,13 @@
 int main(int argc, char *argv[])
 {
 
+
     char filename[100];
     strcpy(filename, argv[1]);
     char md5[200]; // el md5 sera de a lo sumo 16 bytes-128bit pero dejo mas x las dudas
     pid_t mypid = getpid();
-    //int pipeFd = argv[1];   //dejamos el fd del pipe en argv[1]
+    int readFd = argv[1];   //dejamos el fd del pipe en argv[1]
+    int writeFd = 
 
     char command[MAX_COMMAND_LEN];
     for (int i = 1; i < argc; i++)
