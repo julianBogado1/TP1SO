@@ -8,11 +8,11 @@
 
 #define MAX_COMMAND_LEN 100
 
-
 int main(int argc, char *argv[])
 {
 
-    if (argc == 1){
+    if (argc == 1)
+    {
         perror("argc pelele"); // >:(
         return 1;
     }
@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
     // pid_t mypid = getpid();
     // int pipeFd = argv[1];   //dejamos el fd del pipe en argv[1]
     char command[MAX_COMMAND_LEN];
-
 
     for (int i = 1; i < argc; i++)
     {
@@ -38,11 +37,10 @@ int main(int argc, char *argv[])
         }
 
         fscanf(md5_pipe, "%s %s", md5, filename);
-        pclose(md5_pipe);   
+        pclose(md5_pipe);
         printf("%s %s saracatunga lcdll\n", md5, filename);
 
         // write(pipeFd, "\n", 1);
-
     }
     return 0;
 }
