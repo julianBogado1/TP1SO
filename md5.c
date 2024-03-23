@@ -11,24 +11,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int main(int argc, char *argv[]) {
-    int slave_count = argc / 10;
-    char *warn = argv[1];
-
-    for (int i = 0; i < slave_count; i++) {
-        int childpid = fork();
-
-        if (childpid == -1) {
-            perror("fork");
-            exit(EXIT_FAILURE);
-        }
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 //este master genera en total 10 esclavos --> mejorable
 
 void pipeAndFork(){
@@ -95,7 +77,7 @@ int  main(int argc, char * argv[]){
         //     wait(NULL);       // espera hasta que algun hijo termine
         //     exit(EXIT_SUCCESS);
         // }
-    }
 }
+
 
 
