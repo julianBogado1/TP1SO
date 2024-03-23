@@ -12,10 +12,10 @@
 int main(int argc, char *argv[])
 {
 
-    if (argc == 1){
-        perror("argc pelele"); // >:(
-        return 1;
-    }
+    // if (argc == 1){
+    //     perror("argc pelele"); // >:(
+    //     return 1;
+    // }
 
     char filename[100];
     strcpy(filename, argv[1]);
@@ -27,21 +27,19 @@ int main(int argc, char *argv[])
 
     for (int i = 1; i < argc; i++)
     {
-        // sprintf(command, "md5sum %s", argv[i]);
-        sprintf(command, "echo hola julian");
+        sprintf(command, "md5sum %s", argv[i]);
 
         FILE *pipe = popen(command, "r"); // ejecuta el comando "command" con el argumento recibido por consola en slave
 
         if (pipe == NULL)
         {
-            printf("Te devolvio null!");
             perror("popen");
             return 1;
         }
 
-        // fscanf(pipe, "%s %s", md5, filename);
-        // printf("%s %s saracatunga lcdll\n", md5, filename);
+        fscanf(pipe, "%s %s", md5, filename);
         pclose(pipe);   
+        printf("%s %s saracatunga lcdll\n", md5, filename);
 
         // write(pipeFd, "\n", 1);
 
