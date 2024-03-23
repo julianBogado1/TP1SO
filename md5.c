@@ -7,7 +7,11 @@
 
 
 int  main(int argc, char * argv[]){
-    //crear (argc-1)/10
+    int slave_count = argc/10;
+
+    for (int i=0; i<slave_count; i++){
+        //craete a slave process and assign it n? files
+    }
 
 }
 
