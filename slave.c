@@ -8,19 +8,23 @@
 
 #define MAX_COMMAND_LEN 100
 
-int main(int argc, char *argv[])
-{
-
-
+int main(int argc, char *argv[]){
+    if(argc <2){
+        printf("Formato esperado:   ./slave <nombre_archivo1> <nombre_archivo_n>\n");
+        return 1;
+    }
     char filename[100];
-    strcpy(filename, argv[1]);
     char md5[200]; // el md5 sera de a lo sumo 16 bytes-128bit pero dejo mas x las dudas
+
     pid_t mypid = getpid();
-    int readFd = argv[1];   //dejamos el fd del pipe en argv[1]
-    int writeFd = 
+    int readFd;  
+    int writeFd; 
+    sscanf(argv[1], "%d", &readFd); //dejamos el fd del pipe en argv[1]
+    sscanf(argv[2], "%d", &writeFd);
 
     char command[MAX_COMMAND_LEN];
-    for (int i = 1; i < argc; i++)
+    printf("my pid is: %d   readFd: %d   writeFd: %d\n", mypid, readFd, writeFd);
+    /*for (int i = 1; i < argc; i++)
     {
         
         sprintf(command, "md5sum %s", argv[i]);
@@ -39,6 +43,6 @@ int main(int argc, char *argv[])
 
         //write(pipeFd, "\n", 1);
 
-    }
+    }*/
     return 0;
 }

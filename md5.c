@@ -16,23 +16,23 @@ void pipeAndFork(){
     
     //creacion de send pipe
     int sendPipeFd[2]; // sendPipeFd[0] read, sendPipeFd[1] writing
-    if (pipe(pipefd) == -1){
+    if (pipe(sendPipeFd) == -1){
         perror("pipe");
         exit(1);
     }
 
     //creacion de receive pipe
     int receivePipeFd[2]; // sendPipeFd[0] read, sendPipeFd[1] writing
-    if (pipe(pipefd) == -1){
+    if (pipe(receivePipeFd) == -1){
         perror("pipe");
         exit(1);
     }
 
-    char * argvSon[5];
-    argvSon[0] = "./slave";             //por convencion el primer argumento es el nombre del programa   
-    argvSon[1] = sendPipeFd[1] + '0';     //read-end para el hijo
-    argvSon[2] = receivePipeFd[0] + '0';  //write-end para el hijo
-    char * execArgs[3] = {"./slave", argvSon, NULL};
+    char sendPipeFdBuffer[3]={0};
+    char receivePipeFdBuffer[3]={0};
+    char * argvSon[4] = {"./slave", sendPipeFdBuffer, receivePipeFdBuffer, 0};        //por convencion el primer argumento es el nombre del programa 
+    sprintf(sendPipeFdBuffer, "%d", sendPipeFd[1]);     //read-end para el hijo
+    sprintf(receivePipeFdBuffer, "%d", receivePipeFd[0]);
 
     pid_t childpid;
     childpid = fork();
@@ -42,7 +42,7 @@ void pipeAndFork(){
     }
 
     if (childpid == 0){ 
-        int status = execve("./sonCode", execArgs, NULL);
+        int status = execve("./slave", argvSon, NULL);
         perror("execve");
         printf("%d\n", status);
         exit(EXIT_FAILURE);
@@ -58,7 +58,7 @@ void pipeAndFork(){
         close(receivePipeFd[1]);
         exit(EXIT_SUCCESS);
     }
-    return 0;
+    return;
 }
 
 int  main(int argc, char * argv[]){
@@ -68,8 +68,7 @@ int  main(int argc, char * argv[]){
     }
     
     for(int i=1; i<argc; i++){
-
-        pipeAndFork()
+        pipeAndFork();
     }
 
 }
