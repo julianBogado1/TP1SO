@@ -9,21 +9,36 @@
 #define MAX_COMMAND_LEN 100
 
 int main(int argc, char *argv[]){
-    if(argc <2){
-        printf("Formato esperado:   ./slave <nombre_archivo1> <nombre_archivo_n>\n");
-        return 1;
-    }
-    char filename[100];
-    char md5[200]; // el md5 sera de a lo sumo 16 bytes-128bit pero dejo mas x las dudas
 
-    pid_t mypid = getpid();
     int readFd;  
     int writeFd; 
     sscanf(argv[1], "%d", &readFd); //dejamos el fd del pipe en argv[1]
-    sscanf(argv[2], "%d", &writeFd);
+    sscanf(argv[2], "%d", &writeFd);   
 
-    char command[MAX_COMMAND_LEN];
-    printf("my pid is: %d   readFd: %d   writeFd: %d\n", mypid, readFd, writeFd);
+    //ahora en vez de recibir los nombres de los archivos por consola, los recibo por pipe
+    char filename[100];
+    int i = 0;                  //offset de filenames
+    int strSize = 0;
+    printf("soy: %d\n", getpid());
+    while(read(readFd, filename, 1)>0 && i<argc-1){
+        if(filename[strSize] == '\n'){
+            i++;
+        }
+        else{
+            printf("%c", filename[strSize]);
+            strSize++;
+        }      
+    }
+    
+    for(i=0;i<argc-1; i++){
+        printf("%s\n", filename);
+    }
+
+    //en vez de printear los arhivos, los debe enviar por pipe
+    close(readFd);
+    close(writeFd);
+
+
     /*for (int i = 1; i < argc; i++)
     {
         

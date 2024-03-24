@@ -12,7 +12,20 @@
 
 //este master genera en total 10 esclavos --> mejorable
 
-void pipeAndFork(){
+void pipeAndFork(int argc, char * argv[]);
+
+int  main(int argc, char * argv[]){
+    if(argc <= 1){
+        printf("Formato esperado:   ./md5 <nombre_archivo1> <nombre_archivo_n>\n");
+        return 1;
+    }
+    
+    for(int i=1; i<argc; i++){
+        pipeAndFork(argc, argv);
+    }
+}
+
+void pipeAndFork(int argc, char * argv[]){
     
     //creacion de send pipe
     int sendPipeFd[2]; // sendPipeFd[0] read, sendPipeFd[1] writing
@@ -28,11 +41,11 @@ void pipeAndFork(){
         exit(1);
     }
 
-    char sendPipeFdBuffer[3]={0};
-    char receivePipeFdBuffer[3]={0};
+    char sendPipeFdBuffer[1];
+    char receivePipeFdBuffer[1];
     char * argvSon[4] = {"./slave", sendPipeFdBuffer, receivePipeFdBuffer, 0};        //por convencion el primer argumento es el nombre del programa 
-    sprintf(sendPipeFdBuffer, "%d", sendPipeFd[1]);     //read-end para el hijo
-    sprintf(receivePipeFdBuffer, "%d", receivePipeFd[0]);
+    sprintf(sendPipeFdBuffer, "%c", sendPipeFd[0]);     //read-end para el hijo
+    sprintf(receivePipeFdBuffer, "%c", receivePipeFd[1]);   //write-end para el hijo
 
     pid_t childpid;
     childpid = fork();
@@ -49,28 +62,20 @@ void pipeAndFork(){
     }
     else{
         
-        close(sendPipeFd[1]); //cierro el read-end del sendPipe para el padre
-        close(receivePipeFd[0]); //cierro el write-end del receivePipe para el padre
+        close(sendPipeFd[0]); //cierro el read-end del sendPipe para el padre
+        close(receivePipeFd[1]); //cierro el write-end del receivePipe para el padre
+
+        for(int i=1; i<argc; i++){
+            printf("enviando: %s\n", argv[i]);
+            write(sendPipeFd[1], argv[i], strlen(argv[i]));
+            write(sendPipeFd[1], "\0", 1);  //null terminated
+            write(sendPipeFd[1], "\n", 1);  //por convencion \n sera el meta simbolo de siguiente archivo
+        }
 
         wait(NULL);       // espera hasta que **algun** hijo termine
 
-        close(sendPipeFd[0]);
-        close(receivePipeFd[1]);
-        exit(EXIT_SUCCESS);
+        close(sendPipeFd[1]);
+        close(receivePipeFd[0]);
     }
     return;
 }
-
-int  main(int argc, char * argv[]){
-    if(argc <= 1){
-        printf("Formato esperado:   ./md5 <nombre_archivo1> <nombre_archivo_n>\n");
-        return 1;
-    }
-    
-    for(int i=1; i<argc; i++){
-        pipeAndFork();
-    }
-
-}
-
-
