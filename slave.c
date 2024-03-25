@@ -12,31 +12,24 @@ int main(int argc, char *argv[]){
 
     int readFd;  
     int writeFd; 
-    sscanf(argv[1], "%d", &readFd); //dejamos el fd del pipe en argv[1]
-    sscanf(argv[2], "%d", &writeFd);   
-
+    sscanf(argv[1], "%d\n%d", &readFd, &writeFd); //dejamos el fd del pipe en argv[1]
     //ahora en vez de recibir los nombres de los archivos por consola, los recibo por pipe
-    char filename[100];
-    int i = 0;                  //offset de filenames
-    int strSize = 0;
-    printf("soy: %d\n", getpid());
-    while(read(readFd, filename, 1)>0 && i<argc-1){
-        if(filename[strSize] == '\n'){
-            i++;
-        }
-        else{
-            printf("%c", filename[strSize]);
-            strSize++;
-        }      
-    }
     
-    for(i=0;i<argc-1; i++){
-        printf("%s\n", filename);
-    }
+    printf("soy: %d     readfd: %d  writefd: %d\n", getpid(), readFd, writeFd);
 
+    char filename[100];
+    char buff;
+    int strSize = 0;
+    close(writeFd);
+    while(read(readFd, buff, 3)>0){
+        putchar(buff);
+        filename[strSize++] = buff;
+    }
+    filename[strSize] = '\0';
+    printf("%s\n", filename);
+    
     //en vez de printear los arhivos, los debe enviar por pipe
     close(readFd);
-    close(writeFd);
 
 
     /*for (int i = 1; i < argc; i++)
