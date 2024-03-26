@@ -8,19 +8,18 @@ int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesRead;
 
-    bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE);
+    while((bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE)) != 0){
+        if (bytesRead == -1) {
+            perror("Error reading from fd");
+            exit(EXIT_FAILURE);
+        }
+        else {
+            // Print the read data
+            printf("Received: %.*s\n", (int)bytesRead, buffer);
+        }
+    }
 
         
-    if (bytesRead == -1) {
-        perror("Error reading from fd");
-        exit(EXIT_FAILURE);
-    } else if (bytesRead == 0) {
-        // End of file reached
-        printf("End of file reached.\n");
-    } else {
-        // Print the read data
-        printf("Received: %.*s\n", (int)bytesRead, buffer);
-    }
 
     return 0;
 }
