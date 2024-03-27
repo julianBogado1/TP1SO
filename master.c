@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -21,6 +23,7 @@
 #define SLAVE_WRITE_END 3
 
 void pipeAndFork(int fileNum, char *files[]);
+int processedCount = 0;
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -29,18 +32,18 @@ int main(int argc, char *argv[]) {
             "<nombre_archivo_n>\n");
         return 1;
     }
-    pipeAndFork(argc, argv);
+    pipeAndFork(argc - 1, argv + 1);
 }
 
 void pipeAndFork(int fileNum, char *files[]) {
-    int fileCount = fileNum - 1;
     int processedCount = 0;
+    int maxFd = 0;
 
     // TO=DO IMPORTANTE ES HACER BIEN FILE COUNT, AHORA ESTA HARDCODEADO PARA
     // HACERME LA VIDA FACIL
 
     // Puede ser un one liner pero esto es mas legible
-    int childCount = fileCount * 0.1 + 1;  // -1 para sacar el ./master
+    int childCount = fileNum * 0.1 + 1;  // -1 para sacar el ./master
 
     // int childCount = 3;
     childCount = (childCount > 20) ? 20 : childCount;
@@ -63,6 +66,10 @@ void pipeAndFork(int fileNum, char *files[]) {
             perror("receive pipe");
             exit(EXIT_FAILURE);
         }
+
+        maxFd = (fileDescriptors[childTag + MASTER_READ_END] > maxFd)
+                    ? fileDescriptors[childCount + MASTER_READ_END]
+                    : maxFd;
 
         pid_t cpid;
         int status;
@@ -99,24 +106,25 @@ void pipeAndFork(int fileNum, char *files[]) {
         } else {
             // Parent process
             // Wait for the child process to finish
-            char buffer[BUFFER_SIZE];
+            char buffer[BUFFER_SIZE] = {0};
             ssize_t bytesRead;
 
             // Ahora cierro los que no se usan en el master que son slave read y
             // slave write
 
-            // write(fileDescriptors[childTag + MASTER_WRITE_END], 0, 1 == -1)
             close(fileDescriptors[childTag + SLAVE_READ_END]);
             close(fileDescriptors[childTag + SLAVE_WRITE_END]);
 
             if (write(fileDescriptors[childTag + MASTER_WRITE_END],
-                      files[i + 1], strlen(files[i + 1])) == -1) {
+                      files[processedCount],
+                      strlen(files[processedCount])) == -1) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
 
-            
+            processedCount++;
 
+            /*
             close(fileDescriptors[childTag + MASTER_WRITE_END]);
 
             waitpid(cpid, &status, 0);
@@ -131,7 +139,61 @@ void pipeAndFork(int fileNum, char *files[]) {
             } else {
                 printf("Child process exited abnormally\n");
             }
+            */
         }
     }
+
+    fd_set readFds;
+    while (processedCount < fileNum) {
+        /*
+            -FD_ZERO
+            -FD_SET
+            -select()
+            -For(int i < ans)
+                + leo
+                + escribo
+        */
+
+        // Setteamos el set a zero
+        FD_ZERO(&readFds);
+
+        // Iteramos por los children metiendo todos los fds
+        for (int i = 0; i < childCount; i++) {
+            FD_SET(fileDescriptors[i * 4 + MASTER_READ_END], &readFds);
+        }
+
+        // Llamamos a select
+        int numReadyFds = select(maxFd + 1, &readFds, NULL, NULL, NULL);
+
+        if (numReadyFds == -1) {
+            perror("select");
+            exit(EXIT_FAILURE);
+        } else {
+            for (int n = 0; n < childCount; n++) {
+                if (FD_ISSET(fileDescriptors[n + MASTER_READ_END], &readFds)) {
+                    // Read data from stdin
+                    char returnBuffer[1024] = {0};
+                    ssize_t readBytes =
+                        read(fileDescriptors[n + MASTER_READ_END], returnBuffer, sizeof(returnBuffer));
+                    if (readBytes == -1) {
+                        perror("read");
+                        exit(EXIT_FAILURE);
+                    } else if (readBytes == 0) {
+                        printf("End of file encountered.\n");
+                    } else {
+                        // Process the data
+                        returnBuffer[readBytes] = '\0';
+                        printf("Read %zd bytes: %s\n", readBytes, returnBuffer);
+                    }
+
+                    processedCount++;
+                    write(fileDescriptors[n + MASTER_WRITE_END], files[processedCount], strlen(files[processedCount]));
+
+                }
+
+            }
+        }
+    }
+
     return;
 }
