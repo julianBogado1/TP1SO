@@ -1,3 +1,7 @@
+// Nota curiosa, la linea del print(bytesRead leidos: buffer) tiene un bug curioso de que si no imprime cuantos bytes imprimio imprime basura al final del buffer
+// Lo raro de esto es que si los separo en dos prints tambien funciona bien salvo si no printeo el bytesRead
+// No es necesario solucionarlo (mas que nada porque no vamos a estar usandolo) pero era intereante
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -21,9 +25,14 @@ int main(int argc, char* argv[]) {
             // strcpy(filename, buffer);
             // sprintf(command, "md5sum %s\n", filename);
 
-            // puts(command);
-            printf("%s", buffer);
+            // Validamos en caso de un filename demasiado largo 
+            if(bytesRead >= BUFFER_SIZE){
+                perror("invalid filename");
+                exit(EXIT_FAILURE);
+            }
 
+            buffer[bytesRead] = 0; // le agrego el null term q write no manda
+            printf("%ld leidos: %s", bytesRead, buffer);
             // FILE *md5Command = popen(command, "r");
             // if (md5Command == NULL){
             //     perror("popen");

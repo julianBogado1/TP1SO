@@ -20,9 +20,7 @@
 #define MASTER_READ_END 2
 #define SLAVE_WRITE_END 3
 
-void pipeAndFork(int argc, char *argv[]);
-
-char *files[] = {"md5.c", "master.c", "slave.c"};
+void pipeAndFork(int fileNum, char *files[]);
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -34,15 +32,14 @@ int main(int argc, char *argv[]) {
     pipeAndFork(argc, argv);
 }
 
-void pipeAndFork(int argc, char *argv[]) {
-    int fileCount = argc - 1;
+void pipeAndFork(int fileNum, char *files[]) {
+    int fileCount = fileNum - 1;
     int processedCount = 0;
 
     // TO=DO IMPORTANTE ES HACER BIEN FILE COUNT, AHORA ESTA HARDCODEADO PARA
-    // HACERME LA VIDA FACIL 
-    
-    
-    //Puede ser un one liner pero esto es mas legible 
+    // HACERME LA VIDA FACIL
+
+    // Puede ser un one liner pero esto es mas legible
     int childCount = fileCount * 0.1;  // -1 para sacar el ./master
 
     // int childCount = 3;
@@ -107,13 +104,20 @@ void pipeAndFork(int argc, char *argv[]) {
 
             // Ahora cierro los que no se usan en el master que son slave read y
             // slave write
+
+
+            //write(fileDescriptors[childTag + MASTER_WRITE_END], 0, 1 == -1)
             close(fileDescriptors[childTag + SLAVE_READ_END]);
             close(fileDescriptors[childTag + SLAVE_WRITE_END]);
 
             // esto de aca esta mal, es un fake select q espera a q el otro
             // proceso termine porq sabe q ahi va a tener para leer
-            write(fileDescriptors[childTag + MASTER_WRITE_END], argv[i],
-                  strlen(argv[i]));
+
+            if (write(fileDescriptors[childTag + MASTER_WRITE_END], files[i + 1],
+                      strlen(files[i + 1])) == -1) {
+                perror("write");
+                exit(EXIT_FAILURE);
+            }
 
             close(fileDescriptors[childTag + MASTER_WRITE_END]);
 
@@ -123,7 +127,7 @@ void pipeAndFork(int argc, char *argv[]) {
             if (WIFEXITED(status)) {
                 bytesRead = read(fileDescriptors[childTag + MASTER_READ_END],
                                  buffer, BUFFER_SIZE);
-                printf("%s\n", buffer);
+                puts(buffer);
                 printf("Child process exited with status %d\n",
                        WEXITSTATUS(status));
             } else {
