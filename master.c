@@ -40,7 +40,7 @@ void pipeAndFork(int fileNum, char *files[]) {
     // HACERME LA VIDA FACIL
 
     // Puede ser un one liner pero esto es mas legible
-    int childCount = fileCount * 0.1;  // -1 para sacar el ./master
+    int childCount = fileCount * 0.1 + 1;  // -1 para sacar el ./master
 
     // int childCount = 3;
     childCount = (childCount > 20) ? 20 : childCount;
@@ -105,19 +105,17 @@ void pipeAndFork(int fileNum, char *files[]) {
             // Ahora cierro los que no se usan en el master que son slave read y
             // slave write
 
-
-            //write(fileDescriptors[childTag + MASTER_WRITE_END], 0, 1 == -1)
+            // write(fileDescriptors[childTag + MASTER_WRITE_END], 0, 1 == -1)
             close(fileDescriptors[childTag + SLAVE_READ_END]);
             close(fileDescriptors[childTag + SLAVE_WRITE_END]);
 
-            // esto de aca esta mal, es un fake select q espera a q el otro
-            // proceso termine porq sabe q ahi va a tener para leer
-
-            if (write(fileDescriptors[childTag + MASTER_WRITE_END], files[i + 1],
-                      strlen(files[i + 1])) == -1) {
+            if (write(fileDescriptors[childTag + MASTER_WRITE_END],
+                      files[i + 1], strlen(files[i + 1])) == -1) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
+
+            
 
             close(fileDescriptors[childTag + MASTER_WRITE_END]);
 

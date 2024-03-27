@@ -31,8 +31,8 @@ int main(int argc, char* argv[]) {
                 exit(EXIT_FAILURE);
             }
 
-            buffer[bytesRead] = 0; // le agrego el null term q write no manda
-            printf("%ld leidos: %s", bytesRead, buffer);
+            buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
+            printf("%s", buffer);
             // FILE *md5Command = popen(command, "r");
             // if (md5Command == NULL){
             //     perror("popen");
@@ -40,6 +40,5 @@ int main(int argc, char* argv[]) {
             // }
         }
     }
-
     return 0;
 }
