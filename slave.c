@@ -12,7 +12,8 @@
 int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
     char command[BUFFER_SIZE];
-    char filename[100];
+    char md5[BUFFER_SIZE];
+    char filename[BUFFER_SIZE];
 
     ssize_t bytesRead;
 
@@ -30,14 +31,19 @@ int main(int argc, char* argv[]) {
                 perror("invalid filename");
                 exit(EXIT_FAILURE);
             }
-
+            
             buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
-            printf("%s", buffer);
-            // FILE *md5Command = popen(command, "r");
-            // if (md5Command == NULL){
-            //     perror("popen");
-            //     exit(EXIT_FAILURE);
-            // }
+            fprintf(stderr, "%s", buffer);
+            sprintf(command, "md5sum %s", buffer);
+            FILE *pipe = popen(command, "r"); // ejecuta el comando "command" con el argumento recibido por consola en slave
+            if (pipe == NULL){
+                perror("popen");
+                return 1;
+            }
+
+            fscanf(pipe, "%s %s", md5, filename);
+            pclose(pipe);
+            printf("%s %s %d", md5, filename, getpid());
         }
     }
     return 0;
