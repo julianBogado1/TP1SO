@@ -18,10 +18,11 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         } else {
             // Mandamos por salida estandar el output con md5sum
-            strcpy(filename, buffer);
-            sprintf(command, "md5sum %s\n", filename);
+            // strcpy(filename, buffer);
+            // sprintf(command, "md5sum %s\n", filename);
 
-            puts(command);
+            // puts(command);
+            printf("%s", buffer);
 
             // FILE *md5Command = popen(command, "r");
             // if (md5Command == NULL){
