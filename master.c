@@ -42,10 +42,10 @@ void pipeAndFork(int argc, char *argv[]) {
     // HACERME LA VIDA FACIL 
     
     
-    //Puede ser un one liner pero esto es mas legible int
-    // childCount = fileCount * 0.1;  // -1 para sacar el ./master
+    //Puede ser un one liner pero esto es mas legible 
+    int childCount = fileCount * 0.1;  // -1 para sacar el ./master
 
-    int childCount = 3;
+    // int childCount = 3;
     childCount = (childCount > 20) ? 20 : childCount;
 
     // ese *4 esta porq cada hijo va a tener 2 pipes -> 4fds
@@ -112,8 +112,8 @@ void pipeAndFork(int argc, char *argv[]) {
 
             // esto de aca esta mal, es un fake select q espera a q el otro
             // proceso termine porq sabe q ahi va a tener para leer
-            write(fileDescriptors[childTag + MASTER_WRITE_END], files[i],
-                  strlen(files[i]));
+            write(fileDescriptors[childTag + MASTER_WRITE_END], argv[i],
+                  strlen(argv[i]));
 
             close(fileDescriptors[childTag + MASTER_WRITE_END]);
 
