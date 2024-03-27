@@ -10,10 +10,10 @@
 #define BUFFER_SIZE 1024
 
 int main(int argc, char* argv[]) {
-    char buffer[BUFFER_SIZE];
-    char command[BUFFER_SIZE];
-    char md5[BUFFER_SIZE];
-    char filename[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE]={0};
+    char command[BUFFER_SIZE]={0};
+    char md5[BUFFER_SIZE]={0};
+    char filename[BUFFER_SIZE]={0};
 
     ssize_t bytesRead;
 
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
             }
             
             buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
-            fprintf(stderr, "%s", buffer);
+            fprintf(stderr, "%s y buffer es de tamaño: %d\n", buffer, bytesRead);
             sprintf(command, "md5sum %s", buffer);
             FILE *pipe = popen(command, "r"); // ejecuta el comando "command" con el argumento recibido por consola en slave
             if (pipe == NULL){
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            fscanf(pipe, "%s %s", md5, filename);
+            fscanf(pipe, "%s%s", md5, filename);
             pclose(pipe);
             printf("%s %s %d", md5, filename, getpid());
         }

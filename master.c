@@ -99,7 +99,7 @@ void pipeAndFork(int fileNum, char *files[]) {
         } else {
             // Parent process
             // Wait for the child process to finish
-            char buffer[BUFFER_SIZE];
+            char buffer[BUFFER_SIZE] = {0};
             ssize_t bytesRead;
 
             // Ahora cierro los que no se usan en el master que son slave read y
