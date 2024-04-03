@@ -1,9 +1,3 @@
-// Nota curiosa, la linea del print(bytesRead leidos: buffer) tiene un bug
-// curioso de que si no imprime cuantos bytes imprimio imprime basura al final
-// del buffer Lo raro de esto es que si los separo en dos prints tambien
-// funciona bien salvo si no printeo el bytesRead No es necesario solucionarlo
-// (mas que nada porque no vamos a estar usandolo) pero era intereante
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,38 +12,39 @@ int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
     char command[COMMAND_SIZE];
 
-    ssize_t bytesRead;
+    ssize_t bytes_read;
 
-    while ((bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE)) != 0) {
-        if (bytesRead == -1) {
+    while ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE)) != 0) {
+        if (bytes_read == -1) {
             perror("Error reading from fd");
             exit(EXIT_FAILURE);
         } else {
-            // Validamos en caso de un filename demasiado largo
-            if (bytesRead >= BUFFER_SIZE) {
+            // Validate in case of a filename bigger than BUFFER_SIZE
+            if (bytes_read >= BUFFER_SIZE) {
                 perror("invalid filename");
                 exit(EXIT_FAILURE);
             }
 
-            buffer[bytesRead] =
-                '\0';  // le agrego el null term q write no manda
+            buffer[bytes_read] = '\0';  // We add null term
 
-            // nombre md5 pid nullTerm
+            // We run the md5hash command and save it to the buffer
             sprintf(command, "md5sum %s", buffer);
-            FILE* md5Command = popen(command, "r");
-            if (md5Command == NULL) {
+            FILE* md5_command = popen(command, "r");
+            if (md5_command == NULL) {
                 perror("popen");
                 exit(EXIT_FAILURE);
             }
 
-            fgets(buffer, sizeof(buffer), md5Command);
-            pclose(md5Command);
+            // Storing into buffer the hash and filename
+            fgets(buffer, sizeof(buffer), md5_command);
+            pclose(md5_command);
 
-            // le saco el \n de buffer
+            // Truncate the buffer to remove the newline char
             buffer[strlen(buffer) - 1] = 0;
 
-            pid_t slavePid = getpid();
-            sprintf(command, "%s %d\n", buffer, slavePid);
+            pid_t slave_pid = getpid();
+            // The format we want is hash, filename, slave pid
+            sprintf(command, "%s %d\n", buffer, slave_pid);
 
             write(STDOUT_FILENO, command, strlen(command));
         }

@@ -1,7 +1,7 @@
 // TODO:
 //      - while(1) de view
 //      - manejo de errores apertura y cerrado de shm,files,smfs
-//      - comentarios y camelCase
+//      - modular a un .h
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -18,8 +18,9 @@
 #define MAX_CHILDREN 20
 
 /*
- Cuando creamos 2 pipes para conectar master a slave estas estan en el indice
- childTag con este orden:
+ Whenever we create a two pipes to connect a master/slave pair we store it in
+ the file_descriptors arrays at child_tag (an index) and the four are stored
+ in this order:
     --------    1                         0  ----------
    | Master |   ---------->---------------  |  Slave   |
    |        |   ----------<---------------  |          |
@@ -32,18 +33,18 @@
 
 #define SHM_SIZE 1024
 
-void pipeAndFork(int fileNum, char *files[]);
+void pipeAndFork(int file_num, char *files[]);
 
-int create_shm(char *shmName, size_t size);
+int create_shm(char *shm_name, size_t size);
 
 void down(sem_t *sem);
 void up(sem_t *sem);
 
 // TODO que no sea global ta feo
-char *memaddr;  // puntero a la sharemem
-int shm_idx = 0;
-sem_t *mutex;   // semaforo mutex
-sem_t *toread;  // semaforo lector
+char *memaddr;  // Pointer to shm
+int shmdx = 0;
+sem_t *mutex;   // semafore mutex
+sem_t *toread;  // semafore to read
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -53,95 +54,98 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // lets create the shared mem!
-    char *shmName = "/myshm";
+    // Lets create the shared mem!
+    char *shm_name = "/myshm";
     int prot = PROT_READ | PROT_WRITE;
     int flags = MAP_SHARED;
 
-    // just to make sure it doesnt already exist
-    shm_unlink(shmName);
+    // Just to make sure it doesnt already exist
+    shm_unlink(shm_name);
 
-    int shm_fd = create_shm(shmName, SHM_SIZE);
+    int shm_fd = create_shm(shm_name, SHM_SIZE);
     if (shm_fd == -1) {
-        printf("%s shared memory failed\n", shmName);
+        printf("%s shared memory failed\n", shm_name);
         return 0;
     }
 
-    // now we assign address!
+    // Now we assign address!
     // NULL since we dont have a specific one in mind (but the kernel decides
     // anyway) 0 since no offset
     memaddr = (char *)mmap(NULL, SHM_SIZE, prot, flags, shm_fd, 0);
 
-    // semaphores!
+    // Semaphores!
     char *mutex_path = "/mutex_sem";
     char *toread_path = "/toread_sem";
 
-    // just to make sure they arent still there
+    // Just to make sure they arent still there
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 
-    // copy in shm
-    memcpy(memaddr + shm_idx, mutex_path, strlen(mutex_path));
-    shm_idx += strlen(mutex_path);
-    *(memaddr + shm_idx) = '\0';
-    shm_idx++;
-    memcpy(memaddr + shm_idx, toread_path, strlen(toread_path));
-    shm_idx += strlen(toread_path);
-    *(memaddr + shm_idx) = '\0';
-    shm_idx++;
+    // Copy in shm
+    memcpy(memaddr + shmdx, mutex_path, strlen(mutex_path));
+    shmdx += strlen(mutex_path);
+    *(memaddr + shmdx) = '\0';
+    shmdx++;
+    memcpy(memaddr + shmdx, toread_path, strlen(toread_path));
+    shmdx += strlen(toread_path);
+    *(memaddr + shmdx) = '\0';
+    shmdx++;
 
     mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
     toread = sem_open(toread_path, O_CREAT, 0777, 0);
 
-    // pass the shmName to STDOUT
-    write(STDOUT_FILENO, shmName, strlen(shmName));
+    // Pass the shm_name to STDOUT
+    write(STDOUT_FILENO, shm_name, strlen(shm_name));
 
     pipeAndFork(argc - 1, argv + 1);
 
-    // lets unmap the shm
-    munmap(shmName, SHM_SIZE);
+    // Lets unmap the shm
+    munmap(shm_name, SHM_SIZE);
 
-    // lets close it (and the semaphores!!)
+    // Lets close it (and the semaphores!!)
     close(shm_fd);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 }
 
-void pipeAndFork(int fileNum, char *arg_files[]) {
+void pipeAndFork(int file_num, char *arg_files[]) {
     char **files = arg_files;
-    int sentCount = 0;
-    int readCount = 0;
-    int maxFd = 0;
+    int sent_count = 0;
+    int read_count = 0;
+    int max_fd = 0;
 
-    // Puede ser un one liner pero esto es mas legible
-    int childCount = fileNum * 0.1 + 1;  // -1 para sacar el ./master
-    childCount = (childCount > 20) ? 20 : childCount;
+    // We set how many children we are going to create
+    int child_count = file_num * 0.1 + 1;
+    child_count = (child_count > 20) ? 20 : child_count;
 
-    // ese *4 esta porq cada hijo va a tener 2 pipes -> 4fds
-    // El orden siempre va a ser masterRead, masterWrite, slaveRead, slaveWrite
-    int fileDescriptors[childCount * 4];
+    // We are going to have 4 fds for each child
+    // Order is defined in the top comment with the defines
+    int file_descriptors[child_count * 4];
 
-    // creo childCount procesos y a cada uno inicialmente le voy pasando un
-    // archivos
-    for (int i = 0; i < childCount; i++) {
-        int childTag = i * 4;
+    // We create child_count child processes
+    for (int i = 0; i < child_count; i++) {
+        int child_tag = i * 4;
 
-        if (pipe(&fileDescriptors[childTag]) == -1) {
+        // Send and recieve pipes
+        if (pipe(&file_descriptors[child_tag]) == -1) {
             perror("send pipe");
             exit(EXIT_FAILURE);
         }
 
-        if (pipe(&fileDescriptors[childTag + 2]) == -1) {
+        if (pipe(&file_descriptors[child_tag + 2]) == -1) {
             perror("receive pipe");
             exit(EXIT_FAILURE);
         }
 
-        maxFd = (fileDescriptors[childTag + MASTER_READ_END] > maxFd)
-                    ? fileDescriptors[childCount + MASTER_READ_END]
-                    : maxFd;
+        // Each time we create new pipes we check if they are the max_fd (this
+        // is for the select call later on)
+        max_fd = (file_descriptors[child_tag + MASTER_READ_END] > max_fd)
+                     ? file_descriptors[child_count + MASTER_READ_END]
+                     : max_fd;
 
         pid_t cpid;
 
+        // Fork!
         cpid = fork();
         if (cpid == -1) {
             perror("fork");
@@ -149,97 +153,109 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
         }
 
         else if (cpid == 0) {
-            // Primero cierro los que no se usan en el child que son mater read
-            // y master write
-            close(fileDescriptors[childTag + MASTER_WRITE_END]);
-            close(fileDescriptors[childTag + MASTER_READ_END]);
+            // We close the fds we aren't using in the slave, these are the
+            // master read/write ends
+            close(file_descriptors[child_tag + MASTER_WRITE_END]);
+            close(file_descriptors[child_tag + MASTER_READ_END]);
 
-            // Vamos a hacer un execve para llamar el slave
-            // Notar que un conjunto vacio por completo rompe execv
+            // Params for the execv call
             char *arges[] = {NULL};
 
-            if (dup2(fileDescriptors[childTag + SLAVE_READ_END], STDIN_FILENO) <
-                    0 ||
-                dup2(fileDescriptors[childTag + SLAVE_WRITE_END],
+            // The dup2 function will make communicating with the child
+            // processes way easier since we avoid having to send the fds of the
+            // master pipe
+            if (dup2(file_descriptors[child_tag + SLAVE_READ_END],
+                     STDIN_FILENO) < 0 ||
+                dup2(file_descriptors[child_tag + SLAVE_WRITE_END],
                      STDOUT_FILENO) < 0) {
                 perror("dup");
                 exit(EXIT_FAILURE);
             }
 
-            // Cerramos estos fds que ya no necesitamos despues de usar dup2
-            close(fileDescriptors[childTag + SLAVE_READ_END]);
-            close(fileDescriptors[childTag + SLAVE_WRITE_END]);
+            // After changing them with dup2 we close the old fds since we now
+            // only use STDIN and STDOUT
+            close(file_descriptors[child_tag + SLAVE_READ_END]);
+            close(file_descriptors[child_tag + SLAVE_WRITE_END]);
 
-            // Ejecutamos el slave process
+            // Execv here to change into the slave process
             if (execv("./slave", arges) == -1) {
                 perror("execve");
                 exit(EXIT_FAILURE);
             }
 
         } else {
-            // Ahora cierro los que no se usan en el master que son slave read y
-            // slave write
+            // Same as in the parent, we close the unused fds which are now the
+            // slave read/write
+            close(file_descriptors[child_tag + SLAVE_READ_END]);
+            close(file_descriptors[child_tag + SLAVE_WRITE_END]);
 
-            close(fileDescriptors[childTag + SLAVE_READ_END]);
-            close(fileDescriptors[childTag + SLAVE_WRITE_END]);
-
-            if (write(fileDescriptors[childTag + MASTER_WRITE_END],
-                      files[sentCount], strlen(files[sentCount])) == -1) {
+            // We initially send each child a file so as to have them running
+            // asap
+            if (write(file_descriptors[child_tag + MASTER_WRITE_END],
+                      files[sent_count], strlen(files[sent_count])) == -1) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
 
-            sentCount++;
+            sent_count++;
         }
     }
 
     fd_set readFds;
 
-    while (readCount < fileNum) {
-        // Setteamos el set a zero
+    // Now comes the main while loop
+    while (read_count < file_num) {
+        // We set the set to zero
         FD_ZERO(&readFds);
 
-        // Iteramos por los children metiendo todos los fds
-        for (int i = 0; i < childCount; i++) {
-            FD_SET(fileDescriptors[i * 4 + MASTER_READ_END], &readFds);
+        // We set every master read end in the set
+        for (int i = 0; i < child_count; i++) {
+            FD_SET(file_descriptors[i * 4 + MASTER_READ_END], &readFds);
         }
 
-        // Llamamos a select
-        int numReadyFds = select(maxFd + 1, &readFds, NULL, NULL, NULL);
+        // Select call
+        int num_ready_fds = select(max_fd + 1, &readFds, NULL, NULL, NULL);
 
-        if (numReadyFds == -1) {
+        if (num_ready_fds == -1) {
             perror("select");
             exit(EXIT_FAILURE);
         } else {
-            for (int n = 0; n < childCount; n++) {
-                if (FD_ISSET(fileDescriptors[n * 4 + MASTER_READ_END],
+            // We iterate over every child's master read end to see which are
+            // available to read
+            for (int n = 0; n < child_count; n++) {
+                // This checks if the fd is readable
+                if (FD_ISSET(file_descriptors[n * 4 + MASTER_READ_END],
                              &readFds)) {
-                    // Leemos del fd en cuestion
-                    char returnBuffer[1024] = {0};
-                    ssize_t readBytes =
-                        read(fileDescriptors[n * 4 + MASTER_READ_END],
-                             returnBuffer, sizeof(returnBuffer));
-                    if (readBytes == -1) {
+                    char return_buffer[1024] = {0};
+                    // If it is, we try and read it
+                    ssize_t read_bytes =
+                        read(file_descriptors[n * 4 + MASTER_READ_END],
+                             return_buffer, sizeof(return_buffer));
+                    if (read_bytes == -1) {
                         perror("read");
                         exit(EXIT_FAILURE);
-                    } else if (readBytes == 0) {
+                    } else if (read_bytes == 0) {
                         printf("End of file encountered.\n");
                     } else {
-                        // Si nos llego info, imprimimos la data
-                        // returnBuffer[readBytes] = '\0';
-                        // printf("%s\n", returnBuffer);//ACAAAAAAAAAA
+                        // If we got data, we send it to the shm. The slave
+                        // process is in charge of formatting the data correctly
                         down(mutex);
-                        memcpy(memaddr + shm_idx, returnBuffer, readBytes);
-                        shm_idx += readBytes + 1;
+                        memcpy(memaddr + shmdx, return_buffer, read_bytes);
+
+                        // The +1 is for the null term
+                        shmdx += read_bytes + 1;
                         up(mutex);
                         up(toread);
                     }
 
-                    readCount++;
-                    if (sentCount < fileNum) {
-                        write(fileDescriptors[n * 4 + MASTER_WRITE_END],
-                              files[sentCount], strlen(files[sentCount]));
-                        sentCount++;
+                    read_count++;
+
+                    // If we have any remaining files, we sent it over to the
+                    // slave that was just freed
+                    if (sent_count < file_num) {
+                        write(file_descriptors[n * 4 + MASTER_WRITE_END],
+                              files[sent_count], strlen(files[sent_count]));
+                        sent_count++;
                     }
                 }
             }
@@ -248,16 +264,17 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
     return;
 }
 
+// Down and up functions for semaphores
 void down(sem_t *sem) { sem_wait(sem); }
 
 void up(sem_t *sem) { sem_post(sem); }
 
-// shmName should be /somename
-int create_shm(char *shmName, size_t size) {
+// The shm_name has to start with a "/"
+int create_shm(char *shm_name, size_t size) {
     int oflag = O_CREAT | O_RDWR;
     mode_t mode = 0777;  // all permissions
     // now we create!
-    int fd = shm_open(shmName, oflag, mode);
+    int fd = shm_open(shm_name, oflag, mode);
     if (fd == -1) {
         printf("Open failed\n");
         return -1;
