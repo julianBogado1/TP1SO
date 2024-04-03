@@ -42,7 +42,6 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
 
     // Puede ser un one liner pero esto es mas legible
     int childCount = fileNum * 0.1 + 1;  // -1 para sacar el ./master
-
     childCount = (childCount > 20) ? 20 : childCount;
 
     // ese *4 esta porq cada hijo va a tener 2 pipes -> 4fds
@@ -144,7 +143,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
         } else {
             for (int n = 0; n < childCount; n++) {
                 if (FD_ISSET(fileDescriptors[n * 4 + MASTER_READ_END], &readFds)) {
-                    // Read data from stdin
+                    // Leemos del fd en cuestion 
                     char returnBuffer[1024] = {0};
                     ssize_t readBytes =
                         read(fileDescriptors[n * 4 + MASTER_READ_END], returnBuffer,
@@ -155,7 +154,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                     } else if (readBytes == 0) {
                         printf("End of file encountered.\n");
                     } else {
-                        // Process the data
+                        // Si nos llego info, imprimimos la data
                         returnBuffer[readBytes] = '\0';
                         printf("%s\n", returnBuffer);
                     }
