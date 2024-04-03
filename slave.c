@@ -12,6 +12,7 @@
 int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
     char command[BUFFER_SIZE + 7];
+    //char output[BUFFER_SIZE];
     
     ssize_t bytesRead;
 
@@ -38,6 +39,9 @@ int main(int argc, char* argv[]) {
 
             fgets(buffer, sizeof(buffer), md5Command);
             pclose(md5Command);
+
+            //pid_t slavePid = getpid();
+            //sprintf(command, "%s %ld", buffer, slavePid)
 
             write(STDOUT_FILENO, buffer, strlen(buffer));
         }

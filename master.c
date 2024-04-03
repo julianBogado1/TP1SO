@@ -227,6 +227,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                         //printf("%s\n", returnBuffer);//ACAAAAAAAAAA
                         down(mutex);
                         memcpy(memaddr+shm_idx, returnBuffer, readBytes);
+                        shm_idx+=readBytes+1;
                         up(mutex);
                         up(toread);
                     }
