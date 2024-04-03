@@ -31,7 +31,7 @@ int main(int argc, char *argv[]){
 	FD_ZERO(&rfds);
 	FD_SET(STDIN_FD, &rfds);
 
-	char shm_name[SHM_NAME_LEN];
+	char shm_name[SHM_NAME_LEN]={0};
 
 	char input_type = (argc==2)? SHM_PARAMETER:0;
 	input_type += select(STDIN_FD + 1, &rfds, NULL, NULL, &tv)? SHM_STDIN:0;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
 
 	//lets open it and map it here
 	char * memaddr = open_and_map_shm(shm_name, SHM_SIZE);
-
+printf("\nmem:%s\n",memaddr);
 	//semaphores
 	char mutex_path[BUFFER_SIZE]={0};
     char toread_path[BUFFER_SIZE]={0};
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]){
 		i++;
 	}
 	mutex_path[++i]='\0';
-
+printf("\nhere\n");
 	while(memaddr[i+j]!='\0'){
 		toread_path[j]=memaddr[i+j];
 		j++;
@@ -99,7 +99,9 @@ int main(int argc, char *argv[]){
 char * open_and_map_shm(char *shm_name, size_t size){
 	int oflag = O_RDONLY;
 	mode_t mode = 0444;//read only
+	printf("\n[openandmap] shm_name:%s\n", shm_name);
 	int fd = shm_open(shm_name, oflag, mode);
+	printf("\n[openandmap] fd:%d\n", fd);
 
 	int prot = PROT_READ;
 	int flags = MAP_SHARED;

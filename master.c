@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     toread = sem_open(toread_path, O_CREAT, 0777, 0);
 
     //pass the shm_name to STDOUT
-    printf("%s",shm_name);
+    write(STDOUT_FILENO,shm_name,strlen(shm_name));
 
     pipeAndFork(argc - 1, argv + 1);
 
@@ -242,6 +242,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
         }
     }
 
+    sleep(75);
     return;
 }
 
