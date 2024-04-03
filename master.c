@@ -69,7 +69,6 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                     : maxFd;
 
         pid_t cpid;
-        int status;
 
         cpid = fork();
         if (cpid == -1) {
@@ -106,10 +105,6 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
             }
 
         } else {
-            // Parent process
-            // Wait for the child process to finish
-            char buffer[BUFFER_SIZE] = {0};
-            ssize_t bytesRead;
 
             // Ahora cierro los que no se usan en el master que son slave read y
             // slave write
@@ -162,7 +157,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                     } else {
                         // Process the data
                         returnBuffer[readBytes] = '\0';
-                        printf("Read %zd bytes: %s\n", readBytes, returnBuffer);
+                        printf("%s\n", returnBuffer);
                     }
 
                     readCount++;

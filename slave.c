@@ -11,9 +11,8 @@
 
 int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
-    char command[BUFFER_SIZE];
-    char filename[100];
-
+    char command[BUFFER_SIZE + 7];
+    
     ssize_t bytesRead;
 
     while ((bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE)) != 0) {
@@ -21,9 +20,6 @@ int main(int argc, char* argv[]) {
             perror("Error reading from fd");
             exit(EXIT_FAILURE);
         } else {
-            // Mandamos por salida estandar el output con md5sum
-            // strcpy(filename, buffer);
-            // sprintf(command, "md5sum %s\n", filename);
 
             // Validamos en caso de un filename demasiado largo 
             if(bytesRead >= BUFFER_SIZE){
@@ -32,12 +28,18 @@ int main(int argc, char* argv[]) {
             }
 
             buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
+
+            sprintf(command, "md5sum %s", buffer);
+            FILE *md5Command = popen(command, "r");
+            if (md5Command == NULL){
+                perror("popen");
+                exit(EXIT_FAILURE);
+            }
+
+            fgets(buffer, sizeof(buffer), md5Command);
+            pclose(md5Command);
+
             write(STDOUT_FILENO, buffer, strlen(buffer));
-            // FILE *md5Command = popen(command, "r");
-            // if (md5Command == NULL){
-            //     perror("popen");
-            //     exit(EXIT_FAILURE);
-            // }
         }
     }
     return 0;
