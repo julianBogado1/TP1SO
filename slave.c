@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
             }
 
             buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
-            printf("%s", buffer);
+            write(STDOUT_FILENO, buffer, strlen(buffer));
             // FILE *md5Command = popen(command, "r");
             // if (md5Command == NULL){
             //     perror("popen");

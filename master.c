@@ -23,7 +23,6 @@
 #define SLAVE_WRITE_END 3
 
 void pipeAndFork(int fileNum, char *files[]);
-int processedCount = 0;
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -35,24 +34,22 @@ int main(int argc, char *argv[]) {
     pipeAndFork(argc - 1, argv + 1);
 }
 
-void pipeAndFork(int fileNum, char *files[]) {
-    int processedCount = 0;
+void pipeAndFork(int fileNum, char *arg_files[]) {
+    char **files = arg_files;
+    int sentCount = 0;
+    int readCount = 0;
     int maxFd = 0;
-
-    // TO=DO IMPORTANTE ES HACER BIEN FILE COUNT, AHORA ESTA HARDCODEADO PARA
-    // HACERME LA VIDA FACIL
 
     // Puede ser un one liner pero esto es mas legible
     int childCount = fileNum * 0.1 + 1;  // -1 para sacar el ./master
 
-    // int childCount = 3;
     childCount = (childCount > 20) ? 20 : childCount;
 
     // ese *4 esta porq cada hijo va a tener 2 pipes -> 4fds
     // El orden siempre va a ser masterRead, masterWrite, slaveRead, slaveWrite
     int fileDescriptors[childCount * 4];
 
-    // creo childCount procesos y a cada uno inicialmente le voy pasando 2
+    // creo childCount procesos y a cada uno inicialmente le voy pasando un
     // archivos
     for (int i = 0; i < childCount; i++) {
         int childTag = i * 4;
@@ -83,8 +80,8 @@ void pipeAndFork(int fileNum, char *files[]) {
         else if (cpid == 0) {
             // Primero cierro los que no se usan en el child que son mater read
             // y master write
-            close(fileDescriptors[childTag + MASTER_READ_END]);
             close(fileDescriptors[childTag + MASTER_WRITE_END]);
+            close(fileDescriptors[childTag + MASTER_READ_END]);
 
             // Vamos a hacer un execve para llamar el slave
             // Notar que un conjunto vacio por completo rompe execv
@@ -98,11 +95,16 @@ void pipeAndFork(int fileNum, char *files[]) {
                 exit(EXIT_FAILURE);
             }
 
+            // Cerramos estos fds que ya no necesitamos despues de usar dup2
+            close(fileDescriptors[childTag + SLAVE_READ_END]);
+            close(fileDescriptors[childTag + SLAVE_WRITE_END]);
+
             // Ejecutamos el slave process
             if (execv("./slave", arges) == -1) {
                 perror("execve");
                 exit(EXIT_FAILURE);
             }
+
         } else {
             // Parent process
             // Wait for the child process to finish
@@ -115,45 +117,21 @@ void pipeAndFork(int fileNum, char *files[]) {
             close(fileDescriptors[childTag + SLAVE_READ_END]);
             close(fileDescriptors[childTag + SLAVE_WRITE_END]);
 
+            // printf("%d, %s\n", sentCount, files[sentCount]);
+
             if (write(fileDescriptors[childTag + MASTER_WRITE_END],
-                      files[processedCount],
-                      strlen(files[processedCount])) == -1) {
+                      files[sentCount], strlen(files[sentCount])) == -1) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
 
-            processedCount++;
-
-            /*
-            close(fileDescriptors[childTag + MASTER_WRITE_END]);
-
-            waitpid(cpid, &status, 0);
-
-            // Nos fijamos que el child haya cortado bien
-            if (WIFEXITED(status)) {
-                bytesRead = read(fileDescriptors[childTag + MASTER_READ_END],
-                                 buffer, BUFFER_SIZE);
-                puts(buffer);
-                printf("Child process exited with status %d\n",
-                       WEXITSTATUS(status));
-            } else {
-                printf("Child process exited abnormally\n");
-            }
-            */
+            sentCount++;
         }
     }
 
     fd_set readFds;
-    while (processedCount < fileNum) {
-        /*
-            -FD_ZERO
-            -FD_SET
-            -select()
-            -For(int i < ans)
-                + leo
-                + escribo
-        */
 
+    while (readCount < fileNum) {
         // Setteamos el set a zero
         FD_ZERO(&readFds);
 
@@ -170,11 +148,12 @@ void pipeAndFork(int fileNum, char *files[]) {
             exit(EXIT_FAILURE);
         } else {
             for (int n = 0; n < childCount; n++) {
-                if (FD_ISSET(fileDescriptors[n + MASTER_READ_END], &readFds)) {
+                if (FD_ISSET(fileDescriptors[n * 4 + MASTER_READ_END], &readFds)) {
                     // Read data from stdin
                     char returnBuffer[1024] = {0};
                     ssize_t readBytes =
-                        read(fileDescriptors[n + MASTER_READ_END], returnBuffer, sizeof(returnBuffer));
+                        read(fileDescriptors[n * 4 + MASTER_READ_END], returnBuffer,
+                             sizeof(returnBuffer));
                     if (readBytes == -1) {
                         perror("read");
                         exit(EXIT_FAILURE);
@@ -186,11 +165,13 @@ void pipeAndFork(int fileNum, char *files[]) {
                         printf("Read %zd bytes: %s\n", readBytes, returnBuffer);
                     }
 
-                    processedCount++;
-                    write(fileDescriptors[n + MASTER_WRITE_END], files[processedCount], strlen(files[processedCount]));
-
+                    readCount++;
+                    if (sentCount < fileNum) {
+                        write(fileDescriptors[n * 4 + MASTER_WRITE_END],
+                              files[sentCount], strlen(files[sentCount]));
+                        sentCount++;
+                    }
                 }
-
             }
         }
     }
