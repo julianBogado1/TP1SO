@@ -5,6 +5,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <semaphore.h>
 
 #define BUFFER_SIZE 1024
 #define MAX_CHILDREN 20
@@ -22,7 +25,20 @@
 #define MASTER_READ_END 2
 #define SLAVE_WRITE_END 3
 
+#define SHM_SIZE 1024
+
 void pipeAndFork(int fileNum, char *files[]);
+
+int create_shm(char *shm_name, size_t size);
+
+void down(sem_t * sem);
+void up(sem_t * sem);
+
+//TODO que no sea global ta feo
+char *memaddr;//puntero a la sharemem
+int shm_idx=0;
+sem_t *mutex;//semaforo mutex
+sem_t *toread;//semaforo lector
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -31,7 +47,59 @@ int main(int argc, char *argv[]) {
             "<nombre_archivo_n>\n");
         return 1;
     }
+
+    //lets create the shared mem!
+    char *shm_name = "/myshm";
+    int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_SHARED;
+
+    //just to make sure it doesnt already exist
+    shm_unlink(shm_name);
+
+    int fd = create_shm(shm_name, SHM_SIZE);
+	if(fd==-1){
+		printf("%s shared memory failed\n", shm_name);
+		return 0;
+	}
+
+    //now we assign address!
+	//NULL since we dont have a specific one in mind (but the kernel decides anyway)
+	//0 since no offset
+    memaddr = (char *) mmap(NULL,SHM_SIZE,prot,flags,fd,0);
+
+    //semaphores!
+    char *mutex_path = "/mutex_sem";
+    char *toread_path = "/toread_sem";
+
+    //just to make sure they arent still there
+    sem_unlink(mutex_path);
+    sem_unlink(toread_path);
+
+    //copy in shm
+    memcpy(memaddr+shm_idx, mutex_path, strlen(mutex_path));
+    shm_idx+=strlen(mutex_path);
+    *(memaddr+shm_idx)='\0';
+    shm_idx++;
+    memcpy(memaddr+shm_idx, toread_path, strlen(toread_path));
+    shm_idx+=strlen(toread_path);
+    *(memaddr+shm_idx)='\0';
+    shm_idx++;
+
+    mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
+    toread = sem_open(toread_path, O_CREAT, 0777, 0);
+
+    //pass the shm_name to STDOUT
+    printf("%s",shm_name);
+
     pipeAndFork(argc - 1, argv + 1);
+
+    //lets unmap the shm
+    munmap(shm_name,SHM_SIZE);
+
+    //lets close it (and the semaphores!!)
+    shm_unlink(shm_name);
+    sem_unlink(mutex_path);
+    sem_unlink(toread_path);
 }
 
 void pipeAndFork(int fileNum, char *arg_files[]) {
@@ -156,7 +224,11 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                     } else {
                         // Si nos llego info, imprimimos la data
                         returnBuffer[readBytes] = '\0';
-                        printf("%s\n", returnBuffer);
+                        //printf("%s\n", returnBuffer);//ACAAAAAAAAAA
+                        down(mutex);
+                        memcpy(memaddr+shm_idx, returnBuffer, readBytes);
+                        up(mutex);
+                        up(toread);
                     }
 
                     readCount++;
@@ -171,4 +243,30 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
     }
 
     return;
+}
+
+void down(sem_t * sem){
+    sem_wait(sem);
+}
+
+void up(sem_t * sem){
+    sem_post(sem);
+}
+
+//shm_name should be /somename
+int create_shm(char *shm_name, size_t size){
+	int oflag = O_CREAT | O_RDWR;
+	mode_t mode = 0777; //all permissions
+	//now we create!
+	int fd = shm_open(shm_name, oflag, mode);
+	if(fd==-1){
+	       printf("Open failed\n");
+	       return -1;
+	}
+	//now we assign length!
+	if(ftruncate(fd, size)==-1){
+		printf("ftruncate\n");
+		return -1;
+	}
+	return fd;
 }

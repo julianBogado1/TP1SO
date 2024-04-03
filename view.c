@@ -1,3 +1,4 @@
+//TODO ERR return checks!!!!!!!!!!!!!
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -11,11 +12,15 @@
 #define STDIN_FD 0
 #define SHM_NAME_LEN 256
 #define SHM_SIZE 1024
+#define BUFFER_SIZE 1024
 
 #define SHM_PARAMETER 1
 #define SHM_STDIN 2
 
 char * open_and_map_shm(char *shm_name, size_t size);
+int get_sem(char * mem, sem_t* mutex, sem_t* toread);
+void down(sem_t * sem);
+void up(sem_t * sem);
 
 int main(int argc, char *argv[]){
 	//lets search shm_name first
@@ -48,21 +53,45 @@ int main(int argc, char *argv[]){
 	//lets open it and map it here
 	char * memaddr = open_and_map_shm(shm_name, SHM_SIZE);
 
-	//now the actual view process
-	int read_flag=1;
-	int idx=0;
-	while(read_flag){
-		//down(toread)
-		//down(mutex)
-		int flag = *(memaddr+idx)!=0? 1:0;
-		if(flag){
-			int length=printf("%s",memaddr+idx);
-			idx+=length;
-		}
-		//up(mutex)
+	//semaphores
+	char mutex_path[BUFFER_SIZE]={0};
+    char toread_path[BUFFER_SIZE]={0};
+
+	int i=0,j=0;
+
+	while(memaddr[i]!='\0'){
+		mutex_path[i]=memaddr[i];
+		i++;
 	}
+	mutex_path[++i]='\0';
+
+	while(memaddr[i+j]!='\0'){
+		toread_path[j]=memaddr[i+j];
+		j++;
+	}
+	toread_path[++j]='\0';
+
+	int idx=i+j;
+	
+	sem_t *mutex = sem_open(mutex_path, 0);
+    sem_t *toread = sem_open(toread_path, 0);
+
+	//now the actual view process
+	while(1){//this should change though
+		down(toread);
+		down(mutex);
+		int length=printf("%s",memaddr+idx);
+		up(mutex);
+		idx+=length+1;
+	}
+	
 
 	//lets say goodbye now!
+	munmap(shm_name,SHM_SIZE);
+
+	shm_unlink(shm_name);
+    sem_unlink(mutex_path);
+    sem_unlink(toread_path);
 
 	return 0;
 }
@@ -75,4 +104,12 @@ char * open_and_map_shm(char *shm_name, size_t size){
 	int prot = PROT_READ;
 	int flags = MAP_SHARED;
 	return (char *) mmap(NULL,size,prot,flags,fd,0);
+}
+
+void down(sem_t * sem){
+    sem_wait(sem);
+}
+
+void up(sem_t * sem){
+    sem_post(sem);
 }
