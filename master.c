@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
     //just to make sure it doesnt already exist
     shm_unlink(shm_name);
 
-    int fd = create_shm(shm_name, SHM_SIZE);
-	if(fd==-1){
+    int shm_fd = create_shm(shm_name, SHM_SIZE);
+	if(shm_fd==-1){
 		printf("%s shared memory failed\n", shm_name);
 		return 0;
 	}
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     //now we assign address!
 	//NULL since we dont have a specific one in mind (but the kernel decides anyway)
 	//0 since no offset
-    memaddr = (char *) mmap(NULL,SHM_SIZE,prot,flags,fd,0);
+    memaddr = (char *) mmap(NULL,SHM_SIZE,prot,flags,shm_fd,0);
 
     //semaphores!
     char *mutex_path = "/mutex_sem";
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     munmap(shm_name,SHM_SIZE);
 
     //lets close it (and the semaphores!!)
-    shm_unlink(shm_name);
+    close(shm_fd);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 }
@@ -241,8 +241,6 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
             }
         }
     }
-
-    sleep(75);
     return;
 }
 
