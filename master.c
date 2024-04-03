@@ -1,13 +1,18 @@
+// TODO:
+//      - while(1) de view
+//      - manejo de errores apertura y cerrado de shm,files,smfs
+//      - comentarios y camelCase
+
+#include <fcntl.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <semaphore.h>
 
 #define BUFFER_SIZE 1024
 #define MAX_CHILDREN 20
@@ -29,16 +34,16 @@
 
 void pipeAndFork(int fileNum, char *files[]);
 
-int create_shm(char *shm_name, size_t size);
+int create_shm(char *shmName, size_t size);
 
-void down(sem_t * sem);
-void up(sem_t * sem);
+void down(sem_t *sem);
+void up(sem_t *sem);
 
-//TODO que no sea global ta feo
-char *memaddr;//puntero a la sharemem
-int shm_idx=0;
-sem_t *mutex;//semaforo mutex
-sem_t *toread;//semaforo lector
+// TODO que no sea global ta feo
+char *memaddr;  // puntero a la sharemem
+int shm_idx = 0;
+sem_t *mutex;   // semaforo mutex
+sem_t *toread;  // semaforo lector
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -48,55 +53,55 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //lets create the shared mem!
-    char *shm_name = "/myshm";
+    // lets create the shared mem!
+    char *shmName = "/myshm";
     int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_SHARED;
+    int flags = MAP_SHARED;
 
-    //just to make sure it doesnt already exist
-    shm_unlink(shm_name);
+    // just to make sure it doesnt already exist
+    shm_unlink(shmName);
 
-    int shm_fd = create_shm(shm_name, SHM_SIZE);
-	if(shm_fd==-1){
-		printf("%s shared memory failed\n", shm_name);
-		return 0;
-	}
+    int shm_fd = create_shm(shmName, SHM_SIZE);
+    if (shm_fd == -1) {
+        printf("%s shared memory failed\n", shmName);
+        return 0;
+    }
 
-    //now we assign address!
-	//NULL since we dont have a specific one in mind (but the kernel decides anyway)
-	//0 since no offset
-    memaddr = (char *) mmap(NULL,SHM_SIZE,prot,flags,shm_fd,0);
+    // now we assign address!
+    // NULL since we dont have a specific one in mind (but the kernel decides
+    // anyway) 0 since no offset
+    memaddr = (char *)mmap(NULL, SHM_SIZE, prot, flags, shm_fd, 0);
 
-    //semaphores!
+    // semaphores!
     char *mutex_path = "/mutex_sem";
     char *toread_path = "/toread_sem";
 
-    //just to make sure they arent still there
+    // just to make sure they arent still there
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 
-    //copy in shm
-    memcpy(memaddr+shm_idx, mutex_path, strlen(mutex_path));
-    shm_idx+=strlen(mutex_path);
-    *(memaddr+shm_idx)='\0';
+    // copy in shm
+    memcpy(memaddr + shm_idx, mutex_path, strlen(mutex_path));
+    shm_idx += strlen(mutex_path);
+    *(memaddr + shm_idx) = '\0';
     shm_idx++;
-    memcpy(memaddr+shm_idx, toread_path, strlen(toread_path));
-    shm_idx+=strlen(toread_path);
-    *(memaddr+shm_idx)='\0';
+    memcpy(memaddr + shm_idx, toread_path, strlen(toread_path));
+    shm_idx += strlen(toread_path);
+    *(memaddr + shm_idx) = '\0';
     shm_idx++;
 
     mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
     toread = sem_open(toread_path, O_CREAT, 0777, 0);
 
-    //pass the shm_name to STDOUT
-    write(STDOUT_FILENO,shm_name,strlen(shm_name));
+    // pass the shmName to STDOUT
+    write(STDOUT_FILENO, shmName, strlen(shmName));
 
     pipeAndFork(argc - 1, argv + 1);
 
-    //lets unmap the shm
-    munmap(shm_name,SHM_SIZE);
+    // lets unmap the shm
+    munmap(shmName, SHM_SIZE);
 
-    //lets close it (and the semaphores!!)
+    // lets close it (and the semaphores!!)
     close(shm_fd);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
@@ -172,14 +177,11 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
             }
 
         } else {
-
             // Ahora cierro los que no se usan en el master que son slave read y
             // slave write
 
             close(fileDescriptors[childTag + SLAVE_READ_END]);
             close(fileDescriptors[childTag + SLAVE_WRITE_END]);
-
-            // printf("%d, %s\n", sentCount, files[sentCount]);
 
             if (write(fileDescriptors[childTag + MASTER_WRITE_END],
                       files[sentCount], strlen(files[sentCount])) == -1) {
@@ -210,12 +212,13 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
             exit(EXIT_FAILURE);
         } else {
             for (int n = 0; n < childCount; n++) {
-                if (FD_ISSET(fileDescriptors[n * 4 + MASTER_READ_END], &readFds)) {
-                    // Leemos del fd en cuestion 
+                if (FD_ISSET(fileDescriptors[n * 4 + MASTER_READ_END],
+                             &readFds)) {
+                    // Leemos del fd en cuestion
                     char returnBuffer[1024] = {0};
                     ssize_t readBytes =
-                        read(fileDescriptors[n * 4 + MASTER_READ_END], returnBuffer,
-                             sizeof(returnBuffer));
+                        read(fileDescriptors[n * 4 + MASTER_READ_END],
+                             returnBuffer, sizeof(returnBuffer));
                     if (readBytes == -1) {
                         perror("read");
                         exit(EXIT_FAILURE);
@@ -224,10 +227,10 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                     } else {
                         // Si nos llego info, imprimimos la data
                         // returnBuffer[readBytes] = '\0';
-                        //printf("%s\n", returnBuffer);//ACAAAAAAAAAA
+                        // printf("%s\n", returnBuffer);//ACAAAAAAAAAA
                         down(mutex);
-                        memcpy(memaddr+shm_idx, returnBuffer, readBytes);
-                        shm_idx+=readBytes+1;
+                        memcpy(memaddr + shm_idx, returnBuffer, readBytes);
+                        shm_idx += readBytes + 1;
                         up(mutex);
                         up(toread);
                     }
@@ -245,28 +248,24 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
     return;
 }
 
-void down(sem_t * sem){
-    sem_wait(sem);
-}
+void down(sem_t *sem) { sem_wait(sem); }
 
-void up(sem_t * sem){
-    sem_post(sem);
-}
+void up(sem_t *sem) { sem_post(sem); }
 
-//shm_name should be /somename
-int create_shm(char *shm_name, size_t size){
-	int oflag = O_CREAT | O_RDWR;
-	mode_t mode = 0777; //all permissions
-	//now we create!
-	int fd = shm_open(shm_name, oflag, mode);
-	if(fd==-1){
-	       printf("Open failed\n");
-	       return -1;
-	}
-	//now we assign length!
-	if(ftruncate(fd, size)==-1){
-		printf("ftruncate\n");
-		return -1;
-	}
-	return fd;
+// shmName should be /somename
+int create_shm(char *shmName, size_t size) {
+    int oflag = O_CREAT | O_RDWR;
+    mode_t mode = 0777;  // all permissions
+    // now we create!
+    int fd = shm_open(shmName, oflag, mode);
+    if (fd == -1) {
+        printf("Open failed\n");
+        return -1;
+    }
+    // now we assign length!
+    if (ftruncate(fd, size) == -1) {
+        printf("ftruncate\n");
+        return -1;
+    }
+    return fd;
 }
