@@ -223,7 +223,7 @@ void pipeAndFork(int fileNum, char *arg_files[]) {
                         printf("End of file encountered.\n");
                     } else {
                         // Si nos llego info, imprimimos la data
-                        returnBuffer[readBytes] = '\0';
+                        // returnBuffer[readBytes] = '\0';
                         //printf("%s\n", returnBuffer);//ACAAAAAAAAAA
                         down(mutex);
                         memcpy(memaddr+shm_idx, returnBuffer, readBytes);

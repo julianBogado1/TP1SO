@@ -6,14 +6,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 512
+#define COMMAND_SIZE 1024
+#define MD5_SIZE 32
 
 int main(int argc, char* argv[]) {
     char buffer[BUFFER_SIZE];
-    char command[BUFFER_SIZE + 7];
-    //char output[BUFFER_SIZE];
-    
+    char command[COMMAND_SIZE];
+        
     ssize_t bytesRead;
 
     while ((bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE)) != 0) {
@@ -30,6 +32,7 @@ int main(int argc, char* argv[]) {
 
             buffer[bytesRead] = '\0'; // le agrego el null term q write no manda
 
+            // nombre md5 pid nullTerm
             sprintf(command, "md5sum %s", buffer);
             FILE *md5Command = popen(command, "r");
             if (md5Command == NULL){
@@ -40,10 +43,13 @@ int main(int argc, char* argv[]) {
             fgets(buffer, sizeof(buffer), md5Command);
             pclose(md5Command);
 
-            //pid_t slavePid = getpid();
-            //sprintf(command, "%s %ld", buffer, slavePid)
+            // le saco el \n de buffer
+            buffer[strlen(buffer) - 1] = 0;
 
-            write(STDOUT_FILENO, buffer, strlen(buffer));
+            pid_t slavePid = getpid();
+            sprintf(command, "%s %d\n", buffer, slavePid);
+
+            write(STDOUT_FILENO, command, strlen(command));
         }
     }
     return 0;
