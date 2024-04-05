@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Lets create the shared mem!
-    char *shm_name = "/myshm";
+    char *shm_name = "/shamone";
     int prot = PROT_READ | PROT_WRITE;
     int flags = MAP_SHARED;
 
@@ -98,6 +98,10 @@ int main(int argc, char *argv[]) {
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
 
     pipeAndFork(argc - 1, argv + 1);
+
+    //Save -1 in shamone (reveer luego)
+    int endoffile = -1;
+    memcpy(memaddr + shmdx, &endoffile, sizeof(int));
 
     // Lets unmap the shm
     munmap(shm_name, SHM_SIZE);

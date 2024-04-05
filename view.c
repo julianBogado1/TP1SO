@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     sem_t *toread = sem_open(toread_path, 0);
 
     // now the actual view process
-    while (1) {  // this should change though
+    while (*(memaddr+idx)!=-1) {  //until master its done
         down(toread);
         down(mutex);
         int length = printf("%s", memaddr + idx);
@@ -91,6 +91,8 @@ int main(int argc, char *argv[]) {
     shm_unlink(shm_name);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
+
+    printf("\nccia ciao!\n");
 
     return 0;
 }
