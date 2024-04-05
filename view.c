@@ -20,7 +20,8 @@
 #define SHM_PARAMETER 1
 #define SHM_STDIN 2
 
-char *open_and_map_shm(char *shm_name, size_t size);
+int open_shm(char *shm_name);
+char *map_shm(size_t size, int fd);
 int get_sem(char *mem, sem_t *mutex, sem_t *toread);
 void down(sem_t *sem);
 void up(sem_t *sem);
@@ -53,7 +54,8 @@ int main(int argc, char *argv[]) {
     }
 
     // lets open it and map it here
-    char *memaddr = open_and_map_shm(shm_name, SHM_SIZE);
+    int shm_fd = open_shm(shm_name);
+    char *memaddr = map_shm(SHM_SIZE, shm_fd);
 
     // semaphores
     char mutex_path[BUFFER_SIZE] = {0};
@@ -90,20 +92,20 @@ int main(int argc, char *argv[]) {
     // lets say goodbye now!
     munmap(shm_name, SHM_SIZE);
 
-    shm_unlink(shm_name);
-    sem_unlink(mutex_path);
-    sem_unlink(toread_path);
+    close(shm_fd);
+    sem_close(mutex);
+    sem_close(toread);
 
     return 0;
 }
 
-char *open_and_map_shm(char *shm_name, size_t size) {
+int open_shm(char *shm_name){
     int oflag = O_RDONLY;
     mode_t mode = 0444;  // read only
-    // printf("\n[openandmap] shm_name:%s\n", shm_name);
-    int fd = shm_open(shm_name, oflag, mode);
-    // printf("\n[openandmap] fd:%d\n", fd);
+    return shm_open(shm_name, oflag, mode);
+}
 
+char *map_shm(size_t size, int fd) {
     int prot = PROT_READ;
     int flags = MAP_SHARED;
     return (char *)mmap(NULL, size, prot, flags, fd, 0);

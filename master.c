@@ -1,5 +1,4 @@
 // TODO:
-//      - while(1) de view
 //      - manejo de errores apertura y cerrado de shm,files,smfs
 //      - modular a un .h
 // This is a personal academic project. Dear PVS-Studio, please check it.
@@ -110,6 +109,11 @@ int main(int argc, char *argv[]) {
 
     // Lets close it (and the semaphores!!)
     shm_unlink(shm_name);
+
+    //IMPORTANT >:(
+    sem_close(mutex);
+    sem_close(toread);
+
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 }
@@ -164,9 +168,6 @@ void pipeAndFork(int file_num, char *arg_files[]) {
             close(file_descriptors[child_tag + MASTER_WRITE_END]);
             close(file_descriptors[child_tag + MASTER_READ_END]);
 
-            // Params for the execv call
-            char *arges[] = {NULL};
-
             // The dup2 function will make communicating with the child
             // processes way easier since we avoid having to send the fds of the
             // master pipe
@@ -182,6 +183,9 @@ void pipeAndFork(int file_num, char *arg_files[]) {
             // only use STDIN and STDOUT
             close(file_descriptors[child_tag + SLAVE_READ_END]);
             close(file_descriptors[child_tag + SLAVE_WRITE_END]);
+            
+            // Params for the execv call
+            char *arges[] = {"./slave", NULL};
 
             // Execv here to change into the slave process
             if (execv("./slave", arges) == -1) {
