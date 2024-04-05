@@ -1,6 +1,6 @@
-// TODO ERR return checks!!!!!!!!!!!!!
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+// TODO ERR return checks!!!!!!!!!!!!!
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -14,7 +14,6 @@
 
 #define STDIN_FD 0
 #define SHM_NAME_LEN 256
-#define SHM_SIZE 1024
 #define BUFFER_SIZE 1024
 
 #define SHM_PARAMETER 1
@@ -55,7 +54,12 @@ int main(int argc, char *argv[]) {
 
     // lets open it and map it here
     int shm_fd = open_shm(shm_name);
-    char *memaddr = map_shm(SHM_SIZE, shm_fd);
+    
+    struct stat buf;//we will  use buf.st_size
+    fstat(shm_fd, &buf);
+    long int shm_size = buf.st_size;
+    
+    char *memaddr = map_shm(shm_size, shm_fd);
 
     // semaphores
     char mutex_path[BUFFER_SIZE] = {0};
@@ -90,7 +94,7 @@ int main(int argc, char *argv[]) {
     }
 
     // lets say goodbye now!
-    munmap(shm_name, SHM_SIZE);
+    munmap(shm_name, shm_size);
 
     close(shm_fd);
     sem_close(mutex);
