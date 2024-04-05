@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +47,7 @@ int main(int argc, char* argv[]) {
 
             pid_t slave_pid = getpid();
             // The format we want is hash, filename, slave pid
-            sprintf(command, "%s %d\n", buffer, slave_pid);
+            sprintf(command, "%s <%d>\n", buffer, slave_pid);
 
             write(STDOUT_FILENO, command, strlen(command));
         }

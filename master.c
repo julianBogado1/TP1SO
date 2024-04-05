@@ -2,6 +2,8 @@
 //      - while(1) de view
 //      - manejo de errores apertura y cerrado de shm,files,smfs
 //      - modular a un .h
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -49,8 +51,8 @@ sem_t *toread;  // semafore to read
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
         printf(
-            "Formato esperado:   ./master <nombre_archivo1> "
-            "<nombre_archivo_n>\n");
+            "Expected:   ./master <filename_1> "
+            "<filename_n>\n");
         return 1;
     }
 
@@ -99,15 +101,15 @@ int main(int argc, char *argv[]) {
 
     pipeAndFork(argc - 1, argv + 1);
 
-    //Save -1 in shamone (reveer luego)
-    int endoffile = -1;
-    memcpy(memaddr + shmdx, &endoffile, sizeof(int));
+    //Save -1 as end of file
+    int shm_end = -1;
+    memcpy(memaddr + shmdx, &shm_end, sizeof(int));
 
     // Lets unmap the shm
     munmap(shm_name, SHM_SIZE);
 
     // Lets close it (and the semaphores!!)
-    close(shm_fd);
+    shm_unlink(shm_name);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
 }
@@ -265,6 +267,11 @@ void pipeAndFork(int file_num, char *arg_files[]) {
             }
         }
     }
+
+    for(int i = 0; i < child_count; i++) {
+        close(file_descriptors[i*4 + MASTER_WRITE_END]);
+    }
+    
     return;
 }
 

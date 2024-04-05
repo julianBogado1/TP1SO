@@ -1,4 +1,7 @@
 // TODO ERR return checks!!!!!!!!!!!!!
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -45,7 +48,6 @@ int main(int argc, char *argv[]) {
             shm_name[bytes_read] = '\0';
             break;
         default:
-            printf("manda bien la shm, pelele\n");
             printf("Expected: '<info> | ./view', or './view <info>'\n");
             return 0;
     }
@@ -91,8 +93,6 @@ int main(int argc, char *argv[]) {
     shm_unlink(shm_name);
     sem_unlink(mutex_path);
     sem_unlink(toread_path);
-
-    printf("\nccia ciao!\n");
 
     return 0;
 }
