@@ -218,7 +218,7 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
-
+            printf("\nle mandamos a %d\n", child_tag);
             sent_count++;
         }
     }
@@ -268,16 +268,16 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
                         shmdx += read_bytes + 1;
                         up(mutex);
                         up(toread);
-                    }
+                        
+                        read_count++;
 
-                    read_count++;
-
-                    // If we have any remaining files, we sent it over to the
-                    // slave that was just freed
-                    if (sent_count < file_num) {
-                        write(file_descriptors[n * 4 + MASTER_WRITE_END],
-                              files[sent_count], strlen(files[sent_count]));
-                        sent_count++;
+                        // If we have any remaining files, we sent it over to the
+                        // slave that was just freed
+                        if (sent_count < file_num) {
+                            write(file_descriptors[n * 4 + MASTER_WRITE_END],
+                                files[sent_count], strlen(files[sent_count]));
+                            sent_count++;
+                        }
                     }
                 }
             }
