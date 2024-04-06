@@ -30,7 +30,7 @@ int create_shm(char *shm_name, size_t size) {
 *@return    File descriptor of the shm.
 */
 int open_ro_shm(char *shm_name) {
-    int oflag = O_RDONLY;
+    int oflag = O_RDONLY ;
     mode_t mode = 0444;  // read only
     int to_ret = shm_open(shm_name, oflag, mode);
     if (to_ret == -1) {

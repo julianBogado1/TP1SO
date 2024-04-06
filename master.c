@@ -97,12 +97,11 @@ int main(int argc, char *argv[]) {
     int shm_end = -1;
     memcpy(memaddr + shmdx, &shm_end, sizeof(int));
 
-    // Lets unmap and close the shm
-   // munmap(shm_name, SHM_SIZE);
-    //if (munmap(shm_name, SHM_SIZE) == -1){
-    //    perror("munmap");
-    //    exit(EXIT_FAILURE);
-    //}
+    // Lets unmap and close the shms
+    if (munmap(memaddr, SHM_SIZE) == -1){
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
     
     if (close(shm_fd) == -1){
         perror("close");

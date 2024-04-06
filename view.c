@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <errno.h>
 #include "shm.h"
 
 #define STDIN_FD 0
@@ -38,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     switch (input_type) {
         case SHM_PARAMETER:
-            strcpy(shm_name, argv[1]);
+            strncpy(shm_name, argv[1], strlen(argv[1]) + 1);
             break;
         case SHM_STDIN:
             int bytes_read = read(STDIN_FD, shm_name, SHM_NAME_LEN);
@@ -99,11 +98,10 @@ int main(int argc, char *argv[]) {
     }
 
     // lets say goodbye now!
-    munmap(shm_name, shm_size);
-    //if (munmap(shm_name, shm_size) == -1){
-    //    perror("munmap");
-    //    exit(EXIT_FAILURE);
-    //}
+    if (munmap(memaddr, shm_size) == -1){
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
 
     if (close(shm_fd) == -1){
         perror("close");
