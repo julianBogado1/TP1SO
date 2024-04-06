@@ -19,8 +19,6 @@
 #define SHM_PARAMETER 1
 #define SHM_STDIN 2
 
-int get_sem(char *mem, sem_t *mutex, sem_t *toread);
-
 int main(int argc, char *argv[]) {
     // lets search shm_name first
     fd_set rfds;
@@ -37,7 +35,7 @@ int main(int argc, char *argv[]) {
 
     switch (input_type) {
         case SHM_PARAMETER:
-            strncpy(shm_name, argv[1], strlen(argv[1]) + 1);
+            strncpy(shm_name, argv[1], strlen(argv[1]));
             break;
         case SHM_STDIN:
             int bytes_read = read(STDIN_FD, shm_name, SHM_NAME_LEN);

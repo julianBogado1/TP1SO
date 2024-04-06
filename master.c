@@ -1,7 +1,6 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // TODO:
-//      - manejo de errores apertura y cerrado de shm,files,smfs
 //      - variables del shm y sempahore gloales suena feo
 
 #include <fcntl.h>
@@ -90,13 +89,14 @@ int main(int argc, char *argv[]) {
 
     // Pass the shm_name to STDOUT
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
+    sleep(2); //time for view process
 
     pipeAndFork(argc - 1, argv + 1);
 
     //Save -1 as end of file
     int shm_end = -1;
     memcpy(memaddr + shmdx, &shm_end, sizeof(int));
-
+    
     // Lets unmap and close the shms
     if (munmap(memaddr, SHM_SIZE) == -1){
         perror("munmap");
