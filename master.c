@@ -34,11 +34,13 @@
 
 #define SHM_SIZE 1024
 
-void pipeAndFork(int file_num, char *files[]);
+void pipe_and_fork(int file_num, char *files[]);
+void write_result_file();
 
 // TODO que no sea global ta feo
 char *memaddr;  // Pointer to shm
 int shmdx = 0;
+int shm_info_idx = 0;
 sem_t *mutex;   // semafore mutex
 sem_t *toread;  // semafore to read
 
@@ -76,6 +78,8 @@ int main(int argc, char *argv[]) {
     *(memaddr + shmdx) = '\0';
     shmdx++;
 
+    shm_info_idx = shmdx;
+
     mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
     if ((mutex) == SEM_FAILED){
         perror("sem_open");
@@ -89,13 +93,17 @@ int main(int argc, char *argv[]) {
 
     // Pass the shm_name to STDOUT
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
-    sleep(2); //time for view process
+    sleep(5); //time for view process
 
-    pipeAndFork(argc - 1, argv + 1);
+    pipe_and_fork(argc - 1, argv + 1);
+    printf("\npost pipeAndFork\n");
 
     //Save -1 as end of file
     int shm_end = -1;
     memcpy(memaddr + shmdx, &shm_end, sizeof(int));
+
+    //Now we save the results
+    write_result_file();
     
     // Lets unmap and close the shms
     if (munmap(memaddr, SHM_SIZE) == -1){
@@ -122,7 +130,7 @@ int main(int argc, char *argv[]) {
     sem_unlink(toread_path);
 }
 
-void pipeAndFork(int file_num, char *arg_files[]) {
+void pipe_and_fork(int file_num, char *arg_files[]) {
     char **files = arg_files;
     int sent_count = 0;
     int read_count = 0;
@@ -281,4 +289,32 @@ void pipeAndFork(int file_num, char *arg_files[]) {
     }
     
     return;
+}
+
+void write_result_file() {
+    char *file_mode = "w";
+
+    FILE * file = fopen("md5res.txt", file_mode);
+    if (file == NULL) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    int aux_idx=shm_info_idx;
+
+    while (*(memaddr+aux_idx)!=-1) {  //until end of shm
+        down(mutex);    //just in case, since logically there arent anymore writes to shamone
+        int length = fprintf(file, "%s", memaddr + aux_idx);
+        if (length < 0) {
+            perror("fprintf");
+            exit(EXIT_FAILURE);
+        }
+        up(mutex);
+        aux_idx += length + 1;
+    }
+
+    if (fclose(file) == EOF) {
+        perror("fclose");
+        exit(EXIT_FAILURE);
+    }
 }
