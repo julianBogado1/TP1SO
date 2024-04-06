@@ -41,6 +41,10 @@ int main(int argc, char *argv[]) {
             break;
         case SHM_STDIN:
             int bytes_read = read(STDIN_FD, shm_name, SHM_NAME_LEN);
+            if (bytes_read < 0) {
+                perror("read");
+                return 1;
+            }
             shm_name[bytes_read] = '\0';
             break;
         default:
