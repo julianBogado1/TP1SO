@@ -2,7 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // TODO:
 //      - manejo de errores apertura y cerrado de shm,files,smfs
-//      - modular a un .h
+//      - variables del shm y sempahore gloales suena feo
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -103,7 +103,6 @@ int main(int argc, char *argv[]) {
     //    perror("munmap");
     //    exit(EXIT_FAILURE);
     //}
-
     
     if (close(shm_fd) == -1){
         perror("close");
