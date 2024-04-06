@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     // Lets create the shared mem!
     char *shm_name = "/shamone";
 
-    shm_unlink(shm_name);//Just to make sure it doesnt already exist
+    //shm_unlink(shm_name);//Just to make sure it doesnt already exist
 
     int shm_fd = create_shm(shm_name, SHM_SIZE);
 
@@ -69,14 +69,14 @@ int main(int argc, char *argv[]) {
     sem_unlink(toread_path);
 
     //Share the semaphores by copy in shm
-    memcpy(memaddr + shmdx, mutex_path, strlen(mutex_path));
-    shmdx += strlen(mutex_path);
-    *(memaddr + shmdx) = '\0';
-    shmdx++;
-    memcpy(memaddr + shmdx, toread_path, strlen(toread_path));
-    shmdx += strlen(toread_path);
-    *(memaddr + shmdx) = '\0';
-    shmdx++;
+    memcpy(memaddr + shmdx, mutex_path, strlen(mutex_path) + 1);    //+1 to preserve the null terminated
+    shmdx += strlen(mutex_path) + 1;
+    //*(memaddr + shmdx) = '\0';
+    //shmdx++;
+    memcpy(memaddr + shmdx, toread_path, strlen(toread_path) + 1);  //+1 to preserve the null terminated
+    shmdx += strlen(toread_path) + 1;
+    //*(memaddr + shmdx) = '\0';
+    //shmdx++;
 
     shm_info_idx = shmdx;
 

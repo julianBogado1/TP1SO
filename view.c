@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
             strncpy(shm_name, argv[1], strlen(argv[1]));
             break;
         case SHM_STDIN:
-            int bytes_read = read(STDIN_FD, shm_name, SHM_NAME_LEN);
+            int bytes_read = read(STDIN_FD, shm_name, SHM_NAME_LEN - 1);    //to prevent array overrun for shm_names
             if (bytes_read < 0) {
                 perror("read");
                 return 1;
