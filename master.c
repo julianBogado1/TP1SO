@@ -98,17 +98,19 @@ int main(int argc, char *argv[]) {
     memcpy(memaddr + shmdx, &shm_end, sizeof(int));
 
     // Lets unmap and close the shm
-    munmap(shm_name, SHM_SIZE);
+   // munmap(shm_name, SHM_SIZE);
     //if (munmap(shm_name, SHM_SIZE) == -1){
     //    perror("munmap");
     //    exit(EXIT_FAILURE);
     //}
 
+    
+    if (close(shm_fd) == -1){
+        perror("close");
+        exit(EXIT_FAILURE);
+    }
     shm_unlink(shm_name);
-    //if (close(shm_fd) == -1){
-    //    perror("close");
-    //    exit(EXIT_FAILURE);
-    //}
+    
     if (sem_close(mutex) == -1){
         perror("sem_close");
         exit(EXIT_FAILURE);
@@ -117,10 +119,6 @@ int main(int argc, char *argv[]) {
         perror("sem_close");
         exit(EXIT_FAILURE);
     }
-
-    //IMPORTANT >:(
-   // sem_close(mutex);
-   // sem_close(toread);
 
     sem_unlink(mutex_path);
     sem_unlink(toread_path);

@@ -99,11 +99,11 @@ int main(int argc, char *argv[]) {
     }
 
     // lets say goodbye now!
-    //munmap(shm_name, shm_size);
-    if (munmap(shm_name, shm_size) == -1){
-        perror("munmap");
-        exit(EXIT_FAILURE);
-    }
+    munmap(shm_name, shm_size);
+    //if (munmap(shm_name, shm_size) == -1){
+    //    perror("munmap");
+    //    exit(EXIT_FAILURE);
+    //}
 
     if (close(shm_fd) == -1){
         perror("close");
