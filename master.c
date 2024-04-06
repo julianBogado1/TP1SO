@@ -96,7 +96,6 @@ int main(int argc, char *argv[]) {
     sleep(5); //time for view process
 
     pipe_and_fork(argc - 1, argv + 1);
-    printf("\npost pipeAndFork\n");
 
     //Save -1 as end of file
     int shm_end = -1;
@@ -218,7 +217,7 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
-            printf("\nle mandamos a %d\n", child_tag);
+            
             sent_count++;
         }
     }
