@@ -1,6 +1,5 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
-// TODO ERR return checks!!!!!!!!!!!!!
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -11,6 +10,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
+#include "shm.h"
 
 #define STDIN_FD 0
 #define SHM_NAME_LEN 256
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
             break;
         default:
             printf("Expected: '<info> | ./view', or './view <info>'\n");
-            return 0;
+            return 1;
     }
 
     // lets open it and map it here
@@ -55,7 +56,7 @@ int main(int argc, char *argv[]) {
     fstat(shm_fd, &buf);
     long int shm_size = buf.st_size;
     
-    char *memaddr = map_shm(shm_size, shm_fd);
+    char *memaddr = map_ro_shm(shm_size, shm_fd);
 
     // semaphores
     char mutex_path[BUFFER_SIZE] = {0};
@@ -78,7 +79,15 @@ int main(int argc, char *argv[]) {
     int idx = i + j;
 
     sem_t *mutex = sem_open(mutex_path, 0);
+    if ((mutex) == SEM_FAILED){
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
     sem_t *toread = sem_open(toread_path, 0);
+    if ((toread) == SEM_FAILED){
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
 
     // now the actual view process
     while (*(memaddr+idx)!=-1) {  //until master its done
@@ -90,11 +99,24 @@ int main(int argc, char *argv[]) {
     }
 
     // lets say goodbye now!
-    munmap(shm_name, shm_size);
+    //munmap(shm_name, shm_size);
+    if (munmap(shm_name, shm_size) == -1){
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
 
-    close(shm_fd);
-    sem_close(mutex);
-    sem_close(toread);
+    if (close(shm_fd) == -1){
+        perror("close");
+        exit(EXIT_FAILURE);
+    }
+    if (sem_close(mutex) == -1){
+        perror("sem_close");
+        exit(EXIT_FAILURE);
+    }
+    if (sem_close(toread) == -1){
+        perror("sem_close");
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }
