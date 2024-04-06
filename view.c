@@ -19,11 +19,7 @@
 #define SHM_PARAMETER 1
 #define SHM_STDIN 2
 
-int open_shm(char *shm_name);
-char *map_shm(size_t size, int fd);
 int get_sem(char *mem, sem_t *mutex, sem_t *toread);
-void down(sem_t *sem);
-void up(sem_t *sem);
 
 int main(int argc, char *argv[]) {
     // lets search shm_name first
@@ -53,7 +49,7 @@ int main(int argc, char *argv[]) {
     }
 
     // lets open it and map it here
-    int shm_fd = open_shm(shm_name);
+    int shm_fd = open_ro_shm(shm_name);
     
     struct stat buf;//we will  use buf.st_size
     fstat(shm_fd, &buf);
@@ -102,19 +98,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
-int open_shm(char *shm_name){
-    int oflag = O_RDONLY;
-    mode_t mode = 0444;  // read only
-    return shm_open(shm_name, oflag, mode);
-}
-
-char *map_shm(size_t size, int fd) {
-    int prot = PROT_READ;
-    int flags = MAP_SHARED;
-    return (char *)mmap(NULL, size, prot, flags, fd, 0);
-}
-
-void down(sem_t *sem) { sem_wait(sem); }
-
-void up(sem_t *sem) { sem_post(sem); }
