@@ -41,7 +41,6 @@ void write_result_file();
 char *memaddr;  // Pointer to shm
 int shmdx = 0;
 int shm_info_idx = 0;
-//sem_t *mutex;   // semafore mutex
 sem_t *toread;  // semafore to read
 
 int main(int argc, char *argv[]) {
@@ -62,29 +61,17 @@ int main(int argc, char *argv[]) {
     memaddr = map_rw_shm(SHM_SIZE, shm_fd);
 
     // Semaphores
-    //char *mutex_path = "/mutex_sem";
     char *toread_path = "/toread_sem";
 
-    //sem_unlink(mutex_path);//Just to make sure they dont already exist
+    //Just to make sure they dont already exist
     sem_unlink(toread_path);
 
     //Share the semaphores by copy in shm
-    //memcpy(memaddr + shmdx, mutex_path, strlen(mutex_path) + 1);    //+1 to preserve the null terminated
-    //shmdx += strlen(mutex_path) + 1;
-    //*(memaddr + shmdx) = '\0';
-    //shmdx++;
     memcpy(memaddr + shmdx, toread_path, strlen(toread_path) + 1);  //+1 to preserve the null terminated
     shmdx += strlen(toread_path) + 1;
-    //*(memaddr + shmdx) = '\0';
-    //shmdx++;
 
     shm_info_idx = shmdx;
 
-    //mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
-    //if ((mutex) == SEM_FAILED){
-    //    perror("sem_open");
-    //    exit(EXIT_FAILURE);
-    //}
     toread = sem_open(toread_path, O_CREAT, 0777, 0);
     if ((toread) == SEM_FAILED){
         perror("sem_open");
@@ -93,7 +80,7 @@ int main(int argc, char *argv[]) {
 
     // Pass the shm_name to STDOUT
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
-    sleep(5); //time for view process
+    sleep(2); //time for view process
 
     pipe_and_fork(argc - 1, argv + 1);
 
@@ -116,16 +103,11 @@ int main(int argc, char *argv[]) {
     }
     shm_unlink(shm_name);
     
-    //if (sem_close(mutex) == -1){
-    //    perror("sem_close");
-    //    exit(EXIT_FAILURE);
-    //}
     if (sem_close(toread) == -1){
         perror("sem_close");
         exit(EXIT_FAILURE);
     }
 
-    //sem_unlink(mutex_path);
     sem_unlink(toread_path);
 }
 
@@ -260,12 +242,10 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
                     } else {
                         // If we got data, we send it to the shm. The slave
                         // process is in charge of formatting the data correctly
-                        //down(mutex);
                         memcpy(memaddr + shmdx, return_buffer, read_bytes);
 
                         // The +1 is for the null term
                         shmdx += read_bytes + 1;
-                        //up(mutex);
                         up(toread);
                         
                         read_count++;
@@ -302,13 +282,11 @@ void write_result_file() {
     int aux_idx=shm_info_idx;
 
     while (*(memaddr+aux_idx)!=-1) {  //until end of shm
-        //down(mutex);    //just in case, since logically there arent anymore writes to shamone
         int length = fprintf(file, "%s", memaddr + aux_idx);
         if (length < 0) {
             perror("fprintf");
             exit(EXIT_FAILURE);
         }
-        //up(mutex);
         aux_idx += length + 1;
     }
 
