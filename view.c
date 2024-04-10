@@ -60,16 +60,16 @@ int main(int argc, char *argv[]) {
     char *memaddr = map_ro_shm(shm_size, shm_fd);
 
     // semaphores
-    char mutex_path[BUFFER_SIZE] = {0};
+    //char mutex_path[BUFFER_SIZE] = {0};
     char toread_path[BUFFER_SIZE] = {0};
 
     int i = 0, j = 0;
 
-    while (memaddr[i] != '\0') {
-        mutex_path[i] = memaddr[i];
-        i++;
-    }
-    mutex_path[++i] = '\0';
+    //while (memaddr[i] != '\0') {
+    //    mutex_path[i] = memaddr[i];
+    //    i++;
+    //}
+    //mutex_path[++i] = '\0';
 
     while (memaddr[i + j] != '\0') {
         toread_path[j] = memaddr[i + j];
@@ -79,11 +79,11 @@ int main(int argc, char *argv[]) {
 
     int idx = i + j;
 
-    sem_t *mutex = sem_open(mutex_path, 0);
-    if ((mutex) == SEM_FAILED){
-        perror("sem_open");
-        exit(EXIT_FAILURE);
-    }
+    //sem_t *mutex = sem_open(mutex_path, 0);
+    //if ((mutex) == SEM_FAILED){
+    //    perror("sem_open");
+    //    exit(EXIT_FAILURE);
+    //}
     sem_t *toread = sem_open(toread_path, 0);
     if ((toread) == SEM_FAILED){
         perror("sem_open");
@@ -93,9 +93,9 @@ int main(int argc, char *argv[]) {
     // now the actual view process
     while (*(memaddr+idx)!=-1) {  //until master its done
         down(toread);
-        down(mutex);
+        //down(mutex);
         int length = printf("%s", memaddr + idx);
-        up(mutex);
+        //up(mutex);
         idx += length + 1;
     }
 
@@ -109,10 +109,10 @@ int main(int argc, char *argv[]) {
         perror("close");
         exit(EXIT_FAILURE);
     }
-    if (sem_close(mutex) == -1){
-        perror("sem_close");
-        exit(EXIT_FAILURE);
-    }
+    //if (sem_close(mutex) == -1){
+    //    perror("sem_close");
+    //    exit(EXIT_FAILURE);
+    //}
     if (sem_close(toread) == -1){
         perror("sem_close");
         exit(EXIT_FAILURE);
