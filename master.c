@@ -35,8 +35,6 @@
 void pipe_and_fork(int file_num, char *files[], char *memaddr, int *shm_idx, sem_t *info_toread);
 void write_result_file(char *memaddr);
 
-// TODO que no sea global ta feo
-
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
         printf(
@@ -47,16 +45,11 @@ int main(int argc, char *argv[]) {
 
     // Lets create the shared mem!
     char *shm_name = "/shamone";
-
-    //shm_unlink(shm_name);//Just to make sure it doesnt already exist
-
     int shm_fd = create_shm(shm_name, SHM_SIZE);
     char *memaddr = map_rw_shm(SHM_SIZE, shm_fd);
 
     // Semaphores
     char *info_toread_path = "/info_toread_sem";
-    //Just to make sure they dont already exist
-    sem_unlink(info_toread_path);
 
     //Share the semaphores by copy in shm
     int shm_idx = 0;
@@ -103,6 +96,14 @@ int main(int argc, char *argv[]) {
     sem_unlink(info_toread_path);
 }
 
+/**
+*@brief     Divides the process between multiple slaves.
+*@param[in] file_num Number of files to be processed.
+*@param[in] arg_files Files to be processed.
+*@param[in] memaddr Address of the shm that will hold the results.
+*@param[in] shm_idx Index to navigate the mapped shm.
+*@param[in] info_toread Sempahore to indicate information upload upon shm.
+*/
 void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx, sem_t *info_toread) {
     char **files = arg_files;
     int sent_count = 0;
@@ -262,6 +263,10 @@ void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx,
     return;
 }
 
+/**
+*@brief     Writes the results previously uploaded in a shm onto a separate file.
+*@param[in] memaddr Address of the shm that holds the results.
+*/
 void write_result_file(char *memaddr) {
     char *file_mode = "w";
 

@@ -60,26 +60,26 @@ int main(int argc, char *argv[]) {
     char *memaddr = map_ro_shm(shm_size, shm_fd);
 
     // semaphores
-    char toread_path[BUFFER_SIZE] = {0};
+    char info_toread_path[BUFFER_SIZE] = {0};
 
     int i = 0;
     while (memaddr[i] != '\0') {
-        toread_path[i] = memaddr[i];
+        info_toread_path[i] = memaddr[i];
         i++;
     }
-    toread_path[++i] = '\0';
+    info_toread_path[++i] = '\0';
 
     int idx = i;
 
-    sem_t *toread = sem_open(toread_path, 0);
-    if ((toread) == SEM_FAILED){
+    sem_t *info_toread = sem_open(info_toread_path, 0);
+    if ((info_toread) == SEM_FAILED){
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
 
     // now the actual view process
     while (*(memaddr+idx)!=-1) {  //until master its done
-        down(toread);
+        down(info_toread);   //blocks unless there's been information upload
         int length = printf("%s", memaddr + idx);
         idx += length + 1;
     }
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    if (sem_close(toread) == -1){
+    if (sem_close(info_toread) == -1){
         perror("sem_close");
         exit(EXIT_FAILURE);
     }
