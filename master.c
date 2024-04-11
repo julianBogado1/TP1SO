@@ -1,7 +1,5 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
-// TODO:
-//      - variables del shm y sempahore gloales suena feo
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -34,14 +32,10 @@
 
 #define SHM_SIZE 1024
 
-void pipe_and_fork(int file_num, char *files[]);
-void write_result_file();
+void pipe_and_fork(int file_num, char *files[], char *memaddr, int *shm_idx, sem_t *info_toread);
+void write_result_file(char *memaddr);
 
 // TODO que no sea global ta feo
-char *memaddr;  // Pointer to shm
-int shmdx = 0;
-int shm_info_idx = 0;
-sem_t *toread;  // semafore to read
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
@@ -57,23 +51,22 @@ int main(int argc, char *argv[]) {
     //shm_unlink(shm_name);//Just to make sure it doesnt already exist
 
     int shm_fd = create_shm(shm_name, SHM_SIZE);
-
-    memaddr = map_rw_shm(SHM_SIZE, shm_fd);
+    char *memaddr = map_rw_shm(SHM_SIZE, shm_fd);
 
     // Semaphores
-    char *toread_path = "/toread_sem";
-
+    char *info_toread_path = "/info_toread_sem";
     //Just to make sure they dont already exist
-    sem_unlink(toread_path);
+    sem_unlink(info_toread_path);
 
     //Share the semaphores by copy in shm
-    memcpy(memaddr + shmdx, toread_path, strlen(toread_path) + 1);  //+1 to preserve the null terminated
-    shmdx += strlen(toread_path) + 1;
+    int shm_idx = 0;
+    memcpy(memaddr + shm_idx, info_toread_path, strlen(info_toread_path) + 1);  //+1 to preserve the null terminated
+    shm_idx += strlen(info_toread_path) + 1;
 
-    shm_info_idx = shmdx;
+    int shm_info_idx = shm_idx;//just after the semaphore string
 
-    toread = sem_open(toread_path, O_CREAT, 0777, 0);
-    if ((toread) == SEM_FAILED){
+    sem_t *info_toread = sem_open(info_toread_path, O_CREAT, 0777, 0);
+    if ((info_toread) == SEM_FAILED){
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
@@ -82,14 +75,14 @@ int main(int argc, char *argv[]) {
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
     sleep(2); //time for view process
 
-    pipe_and_fork(argc - 1, argv + 1);
+    pipe_and_fork(argc - 1, argv + 1, memaddr, &shm_idx, info_toread);
 
     //Save -1 as end of file
     int shm_end = -1;
-    memcpy(memaddr + shmdx, &shm_end, sizeof(int));
+    memcpy(memaddr + shm_idx, &shm_end, sizeof(int));
 
     //Now we save the results
-    write_result_file();
+    write_result_file(memaddr + shm_info_idx);
     
     // Lets unmap and close the shms
     if (munmap(memaddr, SHM_SIZE) == -1){
@@ -103,15 +96,14 @@ int main(int argc, char *argv[]) {
     }
     shm_unlink(shm_name);
     
-    if (sem_close(toread) == -1){
+    if (sem_close(info_toread) == -1){
         perror("sem_close");
         exit(EXIT_FAILURE);
     }
-
-    sem_unlink(toread_path);
+    sem_unlink(info_toread_path);
 }
 
-void pipe_and_fork(int file_num, char *arg_files[]) {
+void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx, sem_t *info_toread) {
     char **files = arg_files;
     int sent_count = 0;
     int read_count = 0;
@@ -242,11 +234,11 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
                     } else {
                         // If we got data, we send it to the shm. The slave
                         // process is in charge of formatting the data correctly
-                        memcpy(memaddr + shmdx, return_buffer, read_bytes);
+                        memcpy(memaddr + *shm_idx, return_buffer, read_bytes);
 
                         // The +1 is for the null term
-                        shmdx += read_bytes + 1;
-                        up(toread);
+                        *shm_idx += read_bytes + 1;
+                        up(info_toread);
                         
                         read_count++;
 
@@ -270,24 +262,25 @@ void pipe_and_fork(int file_num, char *arg_files[]) {
     return;
 }
 
-void write_result_file() {
+void write_result_file(char *memaddr) {
     char *file_mode = "w";
 
+    //create the result file
     FILE * file = fopen("md5res.txt", file_mode);
     if (file == NULL) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
 
-    int aux_idx=shm_info_idx;
+    int mem_idx=0;
 
-    while (*(memaddr+aux_idx)!=-1) {  //until end of shm
-        int length = fprintf(file, "%s", memaddr + aux_idx);
+    while (*(memaddr+mem_idx)!=-1) {  //until end of shm
+        int length = fprintf(file, "%s", memaddr + mem_idx);
         if (length < 0) {
             perror("fprintf");
             exit(EXIT_FAILURE);
         }
-        aux_idx += length + 1;
+        mem_idx += length + 1;
     }
 
     if (fclose(file) == EOF) {
