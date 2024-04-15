@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +31,7 @@ int main(int argc, char* argv[]) {
             buffer[bytes_read] = '\0';  // We add null term
 
             // We run the md5hash command and save it to the buffer
-            sprintf(command, "md5sum %s", buffer);
+            sprintf(command, "md5sum -z %s", buffer);   //!!-z for NULL terminated (critical for logics)
             FILE* md5_command = popen(command, "r");
             if (md5_command == NULL) {
                 perror("popen");
@@ -36,15 +39,12 @@ int main(int argc, char* argv[]) {
             }
 
             // Storing into buffer the hash and filename
-            fgets(buffer, sizeof(buffer), md5_command);
+            fgets(buffer, BUFFER_SIZE, md5_command);
             pclose(md5_command);
-
-            // Truncate the buffer to remove the newline char
-            buffer[strlen(buffer) - 1] = 0;
 
             pid_t slave_pid = getpid();
             // The format we want is hash, filename, slave pid
-            sprintf(command, "%s %d\n", buffer, slave_pid);
+            sprintf(command, "%s <%d>\n", buffer, slave_pid);
 
             write(STDOUT_FILENO, command, strlen(command));
         }

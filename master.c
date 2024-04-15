@@ -1,7 +1,5 @@
-// TODO:
-//      - while(1) de view
-//      - manejo de errores apertura y cerrado de shm,files,smfs
-//      - modular a un .h
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 #include <fcntl.h>
 #include <semaphore.h>
@@ -13,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "shm.h"
 
 #define BUFFER_SIZE 1024
 #define MAX_CHILDREN 20
@@ -33,82 +32,79 @@
 
 #define SHM_SIZE 1024
 
-void pipeAndFork(int file_num, char *files[]);
-
-int create_shm(char *shm_name, size_t size);
-
-void down(sem_t *sem);
-void up(sem_t *sem);
-
-// TODO que no sea global ta feo
-char *memaddr;  // Pointer to shm
-int shmdx = 0;
-sem_t *mutex;   // semafore mutex
-sem_t *toread;  // semafore to read
+void pipe_and_fork(int file_num, char *files[], char *memaddr, int *shm_idx, sem_t *info_toread);
+void write_result_file(char *memaddr);
 
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
         printf(
-            "Formato esperado:   ./master <nombre_archivo1> "
-            "<nombre_archivo_n>\n");
+            "Expected:   ./master <filename_1> "
+            "<filename_n>\n");
         return 1;
     }
 
     // Lets create the shared mem!
-    char *shm_name = "/myshm";
-    int prot = PROT_READ | PROT_WRITE;
-    int flags = MAP_SHARED;
-
-    // Just to make sure it doesnt already exist
-    shm_unlink(shm_name);
-
+    char *shm_name = "/shamone";
     int shm_fd = create_shm(shm_name, SHM_SIZE);
-    if (shm_fd == -1) {
-        printf("%s shared memory failed\n", shm_name);
-        return 0;
+    char *memaddr = map_rw_shm(SHM_SIZE, shm_fd);
+
+    // Semaphores
+    char *info_toread_path = "/info_toread_sem";
+
+    //Share the semaphores by copy in shm
+    int shm_idx = 0;
+    memcpy(memaddr + shm_idx, info_toread_path, strlen(info_toread_path) + 1);  //+1 to preserve the null terminated
+    shm_idx += strlen(info_toread_path) + 1;
+
+    int shm_info_idx = shm_idx;//just after the semaphore string
+
+    sem_t *info_toread = sem_open(info_toread_path, O_CREAT, 0777, 0);
+    if ((info_toread) == SEM_FAILED){
+        perror("sem_open");
+        exit(EXIT_FAILURE);
     }
-
-    // Now we assign address!
-    // NULL since we dont have a specific one in mind (but the kernel decides
-    // anyway) 0 since no offset
-    memaddr = (char *)mmap(NULL, SHM_SIZE, prot, flags, shm_fd, 0);
-
-    // Semaphores!
-    char *mutex_path = "/mutex_sem";
-    char *toread_path = "/toread_sem";
-
-    // Just to make sure they arent still there
-    sem_unlink(mutex_path);
-    sem_unlink(toread_path);
-
-    // Copy in shm
-    memcpy(memaddr + shmdx, mutex_path, strlen(mutex_path));
-    shmdx += strlen(mutex_path);
-    *(memaddr + shmdx) = '\0';
-    shmdx++;
-    memcpy(memaddr + shmdx, toread_path, strlen(toread_path));
-    shmdx += strlen(toread_path);
-    *(memaddr + shmdx) = '\0';
-    shmdx++;
-
-    mutex = sem_open(mutex_path, O_CREAT, 0777, 1);
-    toread = sem_open(toread_path, O_CREAT, 0777, 0);
 
     // Pass the shm_name to STDOUT
     write(STDOUT_FILENO, shm_name, strlen(shm_name));
+    sleep(2); //time for view process
 
-    pipeAndFork(argc - 1, argv + 1);
+    pipe_and_fork(argc - 1, argv + 1, memaddr, &shm_idx, info_toread);
 
-    // Lets unmap the shm
-    munmap(shm_name, SHM_SIZE);
+    //Save -1 as end of file
+    int shm_end = -1;
+    memcpy(memaddr + shm_idx, &shm_end, sizeof(int));
 
-    // Lets close it (and the semaphores!!)
-    close(shm_fd);
-    sem_unlink(mutex_path);
-    sem_unlink(toread_path);
+    //Now we save the results
+    write_result_file(memaddr + shm_info_idx);
+    
+    // Lets unmap and close the shms
+    if (munmap(memaddr, SHM_SIZE) == -1){
+        perror("munmap");
+        exit(EXIT_FAILURE);
+    }
+    
+    if (close(shm_fd) == -1){
+        perror("close");
+        exit(EXIT_FAILURE);
+    }
+    shm_unlink(shm_name);
+    
+    if (sem_close(info_toread) == -1){
+        perror("sem_close");
+        exit(EXIT_FAILURE);
+    }
+    sem_unlink(info_toread_path);
 }
 
-void pipeAndFork(int file_num, char *arg_files[]) {
+/**
+*@brief     Divides the process between multiple slaves.
+*@param[in] file_num Number of files to be processed.
+*@param[in] arg_files Files to be processed.
+*@param[in] memaddr Address of the shm that will hold the results.
+*@param[in] shm_idx Index to navigate the mapped shm.
+*@param[in] info_toread Sempahore to indicate information upload upon shm.
+*/
+void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx, sem_t *info_toread) {
     char **files = arg_files;
     int sent_count = 0;
     int read_count = 0;
@@ -158,9 +154,6 @@ void pipeAndFork(int file_num, char *arg_files[]) {
             close(file_descriptors[child_tag + MASTER_WRITE_END]);
             close(file_descriptors[child_tag + MASTER_READ_END]);
 
-            // Params for the execv call
-            char *arges[] = {NULL};
-
             // The dup2 function will make communicating with the child
             // processes way easier since we avoid having to send the fds of the
             // master pipe
@@ -176,6 +169,9 @@ void pipeAndFork(int file_num, char *arg_files[]) {
             // only use STDIN and STDOUT
             close(file_descriptors[child_tag + SLAVE_READ_END]);
             close(file_descriptors[child_tag + SLAVE_WRITE_END]);
+            
+            // Params for the execv call
+            char *arges[] = {"./slave", NULL};
 
             // Execv here to change into the slave process
             if (execv("./slave", arges) == -1) {
@@ -196,7 +192,7 @@ void pipeAndFork(int file_num, char *arg_files[]) {
                 perror("write");
                 exit(EXIT_FAILURE);
             }
-
+            
             sent_count++;
         }
     }
@@ -239,50 +235,61 @@ void pipeAndFork(int file_num, char *arg_files[]) {
                     } else {
                         // If we got data, we send it to the shm. The slave
                         // process is in charge of formatting the data correctly
-                        down(mutex);
-                        memcpy(memaddr + shmdx, return_buffer, read_bytes);
+                        memcpy(memaddr + *shm_idx, return_buffer, read_bytes);
 
                         // The +1 is for the null term
-                        shmdx += read_bytes + 1;
-                        up(mutex);
-                        up(toread);
-                    }
+                        *shm_idx += read_bytes + 1;
+                        up(info_toread);
+                        
+                        read_count++;
 
-                    read_count++;
-
-                    // If we have any remaining files, we sent it over to the
-                    // slave that was just freed
-                    if (sent_count < file_num) {
-                        write(file_descriptors[n * 4 + MASTER_WRITE_END],
-                              files[sent_count], strlen(files[sent_count]));
-                        sent_count++;
+                        // If we have any remaining files, we sent it over to the
+                        // slave that was just freed
+                        if (sent_count < file_num) {
+                            write(file_descriptors[n * 4 + MASTER_WRITE_END],
+                                files[sent_count], strlen(files[sent_count]));
+                            sent_count++;
+                        }
                     }
                 }
             }
         }
     }
+
+    for(int i = 0; i < child_count; i++) {
+        close(file_descriptors[i*4 + MASTER_WRITE_END]);
+    }
+    
     return;
 }
 
-// Down and up functions for semaphores
-void down(sem_t *sem) { sem_wait(sem); }
+/**
+*@brief     Writes the results previously uploaded in a shm onto a separate file.
+*@param[in] memaddr Address of the shm that holds the results.
+*/
+void write_result_file(char *memaddr) {
+    char *file_mode = "w";
 
-void up(sem_t *sem) { sem_post(sem); }
+    //create the result file
+    FILE * file = fopen("md5res.txt", file_mode);
+    if (file == NULL) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
 
-// The shm_name has to start with a "/"
-int create_shm(char *shm_name, size_t size) {
-    int oflag = O_CREAT | O_RDWR;
-    mode_t mode = 0777;  // all permissions
-    // now we create!
-    int fd = shm_open(shm_name, oflag, mode);
-    if (fd == -1) {
-        printf("Open failed\n");
-        return -1;
+    int mem_idx=0;
+
+    while (*(memaddr+mem_idx)!=-1) {  //until end of shm
+        int length = fprintf(file, "%s", memaddr + mem_idx);
+        if (length < 0) {
+            perror("fprintf");
+            exit(EXIT_FAILURE);
+        }
+        mem_idx += length + 1;
     }
-    // now we assign length!
-    if (ftruncate(fd, size) == -1) {
-        printf("ftruncate\n");
-        return -1;
+
+    if (fclose(file) == EOF) {
+        perror("fclose");
+        exit(EXIT_FAILURE);
     }
-    return fd;
 }
