@@ -117,6 +117,7 @@ void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx,
     // We are going to have 4 fds for each child
     // Order is defined in the top comment with the defines
     int file_descriptors[child_count * 4];
+    pid_t childPids[child_count];
 
     // We create child_count child processes
     for (int i = 0; i < child_count; i++) {
@@ -180,6 +181,9 @@ void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx,
             }
 
         } else {
+
+            childPids[i] = cpid;
+
             // Same as in the parent, we close the unused fds which are now the
             // slave read/write
             close(file_descriptors[child_tag + SLAVE_READ_END]);
@@ -258,6 +262,7 @@ void pipe_and_fork(int file_num, char *arg_files[], char *memaddr, int *shm_idx,
 
     for(int i = 0; i < child_count; i++) {
         close(file_descriptors[i*4 + MASTER_WRITE_END]);
+        waitpid(childPids[i]);
     }
     
     return;
